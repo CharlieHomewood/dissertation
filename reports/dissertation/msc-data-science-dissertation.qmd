@@ -1,0 +1,18 @@
+---
+title: "DISSERTATION TITLE"
+authors: 
+  - name: "Candidate Number: 291723"
+    affiliations: 
+      - name: University of Sussex
+        department: Department of Mathematics
+abstract: |
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur convallis leo sit amet euismod finibus. Nullam vestibulum metus nec mauris varius, eu aliquam purus commodo. Sed faucibus ex nisl, id bibendum ligula ultrices nec. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla volutpat gravida sem, et consequat diam pretium ac. Donec condimentum pulvinar scelerisque. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Morbi elementum felis sapien, id euismod metus tincidunt vel. Mauris elementum eu neque elementum molestie. Morbi accumsan, nunc in malesuada semper, neque urna suscipit neque, non ornare velit purus id massa. Sed ut mi vel leo egestas euismod vel sit amet orci. Sed sed placerat odio. Mauris tincidunt id ex id commodo. Etiam hendrerit lacus et velit gravida, in volutpat enim aliquet. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; Cras vel tortor sagittis, dignissim purus sit amet.
+format:
+  ams-typst: default
+bibliography: ../refs.bib
+csl: numeric.csl
+---
+
+## Introduction
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur et ornare urna, ornare malesuada ante. Aenean fringilla fermentum pulvinar. Integer maximus mauris id gravida eleifend. Donec et facilisis neque.

@@ -1,0 +1,130 @@
+---
+title: "Research Proposal: Evaluation of Attacking Decision Making in Association Football Using Spatial Context and Counterfactual Events"
+authors: 
+  - name: "Candidate Number: 291723"
+    affiliations: 
+      - name: University of Sussex
+format:
+  ams-typst: default
+bibliography: refs.bib
+csl: numeric.csl
+---
+
+```{python}
+#| echo: False
+import pickle
+from IPython.display import Markdown
+
+with open("../../data/metadata/number_of_matches.pkl", "rb") as f:
+    number_of_matches = pickle.load(f)
+
+# with open("../../data/metadata/number_of_events.pkl", "rb") as f:
+#     number_of_events = pickle.load(f)
+```
+
+# Introduction
+
+Players in association football matches must make numerous, fast-paced decisions based on limited information and time [@petiotKeyCharacteristicsDecision2021]. Those players who are capable of consistently making better decisions thus have an advantage. Whilst defensive decision making is crucially important and helps avoid defeat, good attacking decision making wins matches. Traditional evaluations of attacking performance typically focus on the action that *was* taken. However, simply looking at the quality of the actions taken by a player ignores the actions they *could* have taken instead. 
+
+The StatsBomb Open Data repository [@StatsbombOpendata2026] provides events (e.g. carries, passes, shots) data for matches, along with *three-sixty* freeze frames which indicate the positions of players within proximity of the acting player. This provides an opportunity to evaluate both the value of the attacking action taken by a player, but also to identify alternative actions. For instance, @fig-intro-event-example shows a pass to a player on the left-hand side of the opposition penalty area. However, we can see that other players were also available for a pass and may possibly have been better options. 
+
+![Action Example (True Action = Black Arrow, Alternative Actions = Orange)](figures/intro_event_example.png){#fig-intro-event-example}
+
+By considering counterfactual events, determining their expected value and comparing them to the action taken, information regarding a player's ability to make decisions can be gained. A strong decision maker should tend to choose the most valuable action available to them at any given moment. 
+
+Regarding the measurement of the value of an action, soccer analytics has developed multiple metrics. For example, expected goals (xG) provides the probability of a shot resulting in a goal, based on features about the shot event itself such as its location [@AssessingPerformancePremier]. Expected threat (xT) evaluates actions based on how they progress the ball towards areas of the pitch where goal scoring is more probable [@SinghIntroducingExpectedThreat2018]. A more sophisticated metric is Valuing Actions by Estimating Probabilities (VAEP) [@decroosActionsSpeakLouder2019]. VAEP considers the probability of scoring or conceding within the next $k$ events to assign a value between $-1$ and $1$ to each action. 
+
+VAEP, like other metrics, typically uses action-centric features such as the action's location and type (carry, pass, shot) in estimating probabilties, but this approach ignores spatial context [@desa-freireEventDataBased2025]. Spatial context - the position of teammates and opponents around the actor - for an action determines the options available to a player, showing potential passing options, shooting angles as well as the proximity of opposition defenders applying pressure or blocking options. 
+
+Thus, the proposed project aims to explore the extent to which the addition of spatial context may enhance the VAEP measure of action value. With an appropriate VAEP model, this proposed project will then aim to measure the value of actions and the best alternative available actions. This will enable a demonstration of the practical applications of evaluating counterfactual events.
+
+## Research Objectives
+
+ - Investigate to what extent the VAEP metric can be enhanced by incorporating spatial context.
+ - For a given event, determine the value of the action taken and how it compares to the best alternative available actions.
+ - Outline practical applications of an attacking decision-making metric, based on the VAEP of chosen and counterfactual events.
+
+# Previous Research
+
+ - What is xT? What is VAEP and why is it better?
+ - What are plausible counterfactual actions in soccer?
+
+Soccer analytics has developed multiple metrics for valuing actions taken by players. For example, expected goals (xG) provides the probability of a shot resulting in a goal, based on features about the shot event itself such as its location [@AssessingPerformancePremier]. Expected threat (xT) evaluates actions based on how they progress the ball towards areas of the pitch where goal scoring is more probable [@SinghIntroducingExpectedThreat2018]. A more sophisticated metric is Valuing Actions by Estimating Probabilities (VAEP) [@decroosActionsSpeakLouder2019]. VAEP considers the probability of scoring or conceding within the next $k$ events to assign a value between $-1$ and $1$ to each action. VAEP typically uses the action's location and type (carry, pass, shot) in estimating probabilties, but additional information could improve estimates. Spatial context for an action determines the options available to a player. Such information could be incorporated into scoring/conceding probability estimates for a VAEP model.
+
+## Measuring Decision Making: Valuing Actions by Estimating Probabilities (VAEP)
+
+$$
+V(a_{i}) = \Delta P_{score} - \Delta P_{concede}
+$$
+
+# Methodology
+
+## Datasets
+
+The proposed project will use data from StatsBomb's Open Data repository. This repository has "made certain leagues of StatsBomb Data freely available for public use for research projects and genuine interest in football analytics" [@StatsbombOpendata2026]. The StatsBomb Open Data repository provides the following datasets, and [data specification documents](https://github.com/statsbomb/open-data/tree/master/doc) exist which outline variables, data types and variable descriptions for each dataset: 
+
+ - **competitions.json:** A single JSON file for competition summary information.
+ - **events:** A directory containing a single JSON file for each match, detailing each event which takes place within that match (e.g. each pass, shot, carry etc.).
+ - **lineups:** A directory containing a single JSON file for each match, providing information about each player who participated in that match (e.g. their position, shirt number, nationality).
+ - **matches:** A directory containing a single JSON file for a season in a given competition, providing summary information about each match played in that season (e.g. match date, home/away teams and scores).
+ - **three-sixty:** A directory containing a single JSON file for each match, providing data for each event in a given match detailing the position of each player in the broadcaster's frame at the moment of that event.
+
+The proposed project will use data corresponding to `{python} number_of_matches` matches from UEFA Men's Euro 2020 & 2024, UEFA Women's Euro 2022 & 2025, FIFA Men's World Cup 2022, FIFA Women's World Cup 2023. Unlike most competitions in this repository, **three-sixty** data is available for every match in this sample, enabling player positional context to be incorporated into feature engineering for XXXXXX match events.
+
+### Limitations of Datasets
+
+Football analysts often makes use of tracking data [@goesUnlockingPotentialBig2021]. Rather than considering discrete time events, tracking data provides a continuous record of player and ball position for the duration of a match. This enables analysts to model actions in matches as continuous processes, accounting for the position and movements of the entire team, unlike with events data. Such tracking data is often proprietory and is thus not available for public use [@bassekIntegratedDatasetSpatiotemporal2025]. This limits the scope of the present project to viewing events as discrete in time, thus losing some surrounding context which may be informative. 
+
+Events data is nonetheless relatively comprehensive, covering a much larger sample of matches than the limited publicly-available tracking data [@olthofPerspectivesDataAnalytics2025]. Furthermore, the use of StatsBomb's **three-sixty** data aims to address this limitation somewhat by providing snapshots of proximal player positions at the point of each event, allowing some inference to be made regarding team positioning during match events. However, these snapshots do not necessarily capture every player's location during an event, just those within the view of the broadcast camera [@StatsbombOpendata2026]. 
+
+## VAEP Model Training
+
+
+
+### Logistic Regression
+
+$$
+P(Y = 1 | X) = \frac{1}{1+e^{\displaystyle-(\beta_{0}+\beta_{1}x_{1}+\dots+\beta_{n}x_{n})}}
+$$
+
+#### Loss Function: Cross-Entropy Loss
+
+$$
+H(p,q)=-\sum_{x \in X}p(x)\log q(x)
+$$
+
+### Random Forest
+
+#### Split Criterion: Gini Impurity
+
+### Gradient Boosting
+
+#### XGBoost
+
+#### Catboost
+
+
+
+
+## VAEP Model Evaluation Metrics
+
+ - Brier Score
+
+$$
+BS = \frac{1}{N}\sum_{j=1}^{r}\sum_{i=1}^{n}(f_{ij}-E_{ij})^{2}
+$$
+
+For binary classification
+
+ - AUC-ROC
+
+## Criteria for Valid Counterfactual Events
+
+## EDA
+
+# Project Planning
+
+ - A Gantt Chart
+
+# Conclusion
+
