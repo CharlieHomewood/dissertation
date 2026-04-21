@@ -84,9 +84,7 @@ $$ {#eq-vaep-player-rating}
 
 The authors compare these VAEP player ratings against traditional metrics like goals and assists per-$90$, as well as market valuations of players. The authors found the top-$10$ highest players ranked by VAEP captured players typically considered to be amongst the best in the Premier League, despite them not appearing in the top-$10$ goals + assists per-$90$ ranking. The top-$10$ VAEP ranked list also had a higher overall market valuation than the top-$10$ goals + assists per-$90$ ranked list (€$1,110$ Million vs $947 Million$), which suggests VAEP more comprehensively represent player value compared to tranditional metrics.
 
-
-
-The addition of spatial context has been successfully applied to related action value metrics...
+One potential limitation of the VAEP model is that is lacks a representation of wider spatial context from the positions of teammates and opponents during actions [@desa-freireEventDataBased2025]. Whilst the use of spatial context in VAEP models is understudied, its addition has been successfully applied to alternative action value metrics. 
 
 Expected goals (xG) is an approach commonly used for assigning value to individual shots [@AssessingPerformancePremier; @macdonaldExpectedGoalsModel2012]. General to xG approaches is the representation of the value of some shot as the probability that it results in a goal. These goal probabilities are estimated via various classification algorithms such as logistic regression, gradient boosting and deep learning methods [@meadExpectedGoalsFootball2023]. Features used in xG models typically include *action-intrinsic* variables such as distance/angle to the centre of the opponent's goal and the body part used, along with *match-context* variables such as the current match scenario (e.g. set piece, open play) [@anzerGoalScoringProbability2021; @meadExpectedGoalsFootball2023;  @robberechtsHowDataAvailability2020].
 
@@ -107,6 +105,10 @@ $$ {#eq-xt-first-iteration}
 We can then take the xT values from this first iteration and recalculate them iteratively until convergence. @SinghIntroducingExpectedThreat2018 suggests $4$--$5$ iterations are sufficient but that this may vary across datasets. To then assign xT to an action, we simply subtract the xT of the end location of the action (i.e. the xT of zone $(z,w)$) by the xT of the start location (the xT of zone $(x,y)$). This approach is useful for allowing us to determine the value of any on-ball attacking action, not just shots. We can also quantify genuinely valuable actions at any point during a chain of actions (e.g. an incisive pass during a sequence which ends in a goal), rather than suffering from a bias towards teminating actions (goals, assists).
 
 @everettContextualExpectedThreat2022 introduce spatial context to the xT transition matrix $T_{(x,y)}$ via a pitch control [@spearmanPhysicsBasedModelingPass2017] and interception model [@BurrielQuestForTheRightPass2021] which was used to train a convolutional neural network (CNN) to produce the transition probabilities for their contextual transition matrix $T_{(x,y)}^{\star}$. The pitch control model considers the probability of a player controlling the ball as a function of their distance from opposition players, whilst the interception model introduces an additional transition probability, that being the probability of the ball being intercepted when moving from zone $(x,y)$ to its intended destination $(z,w)$. @everettContextualExpectedThreat2022 found the introduction of spatial context yielded a modest improvement in terms of model fit, reducing the log likelihood of the xT model from -5.137 to -4.151. Greater gains were found in its useful applications to tactical analysis, such as enabling the authors to apply a Basin-Hopping optimiser [@walesGlobalOptimizationBasinHopping1997] to find more optimal defensive shapes than which actually occurred during actions, using their derived Threat Above Expected (TAx) metric as the algorithm's loss function.
+
+
+
+These examples demonstrate the utility provided by incorporating spatial context into action valuation models
 
 # Methodology
 
