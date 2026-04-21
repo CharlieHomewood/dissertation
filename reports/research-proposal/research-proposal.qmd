@@ -1,11 +1,12 @@
 ---
 title: "Research Proposal: Evaluating the Impact of Augmenting the VAEP Model with 360-Degree Freeze-Frame Spatial Context"
+short-title: "Hello"
 authors: 
   - name: "Candidate Number: 291723"
     affiliations: 
       - name: University of Sussex
 format:
-  ams-typst: default
+    ams-typst: default
 bibliography: refs.bib
 csl: numeric.csl
 ---
@@ -24,40 +25,88 @@ with open("../../data/metadata/intro_event_example_shot_id.pkl", "rb") as f:
 with open("../../data/metadata/number_of_matches.pkl", "rb") as f:
     number_of_matches = pickle.load(f)
 
-# with open("../../data/metadata/number_of_events.pkl", "rb") as f:
-#     number_of_events = pickle.load(f)
+with open("../../data/metadata/number_of_events.pkl", "rb") as f:
+    number_of_events = pickle.load(f)
 ```
 
 # Introduction
 
-The adoption of analytics in association football has grown significantly in the last couple of decades [@goesUnlockingPotentialBig2021; @olthofPerspectivesDataAnalytics2025; @schaerlaeckensBelgianLabShaping2025; @wakelamCollectionAnalysisExploitation2022], enabling football clubs to leverage insights to inform tactical decisions, coaching and recruitment. Much of this growth has involved development of metrics used to determine the value provided by a particular action made by a player. For example, expected goals (xG) provides the probability of a shot resulting in a goal, based on features about the shot event itself such as its location [@AssessingPerformancePremier]. Expected threat (xT) evaluates actions based on how they progress the ball towards areas of the pitch where goal scoring is more probable [@SinghIntroducingExpectedThreat2018]. A more sophisticated metric is Valuing Actions by Estimating Probabilities (VAEP) [@decroosActionsSpeakLouder2019]. 
+The adoption of analytics in association football has grown significantly in the last couple of decades [@goesUnlockingPotentialBig2021; @olthofPerspectivesDataAnalytics2025; @schaerlaeckensBelgianLabShaping2025; @wakelamCollectionAnalysisExploitation2022], enabling football clubs to leverage insights to inform tactical decisions, coaching and recruitment. Much of this innovation has involved the development of metrics used to determine the value provided by a particular action made by a player in terms of goal-scoring probabilities. One such metric is Valuing Actions by Estimating Probabilities (VAEP) [@decroosActionsSpeakLouder2019]. 
 
-VAEP considers the probability of scoring or conceding within the next $k$ events to assign a value between $-1$ and $1$ to each action. VAEP, like other such metrics, typically uses action-centric features such as the action's start and end location and type (carry, pass, shot) in estimating scoring/conceding probabilties, but this approach ignores spatial context [@desa-freireEventDataBased2025]. The spatial context - the position of teammates and opponents around the actor - of an action determines the options available to a player, showing viable passing options or space to carry into, as well as the proximity of opposition defenders applying pressure or blocking options. 
+VAEP considers the probability of scoring or conceding within the next $k$ events to assign a value between $-1$ and $1$ to each action. VAEP, like other such metrics, typically uses action-centric features such as the action's start and end location and type (carry, pass, shot) in estimating scoring/conceding probabilties, but this approach does not explicitly model the wider spatial context [@desa-freireEventDataBased2025]. The spatial context - the position of teammates and opponents around the actor - of an action determines the options available to a player, showing viable passing options or space to carry into, as well as the proximity of opposition defenders applying pressure or blocking options. 
 
-The StatsBomb Open Data repository [@StatsbombOpendata2026] provides events (e.g. carries, passes, shots) data for matches, along with *three-sixty* freeze frames which indicate the positions of players within proximity of the acting player. Such data can be used to incorporate spatial context as a predictive feature. @fig-intro-event-example compares a pass event from a match with and without the surrounding spatial context. Without the spatial context, this pass seems to be ineffective and raises a question over why it was not directed forwards towards the opponent's goal. Traditional VAEP would still take into account how passes of this trajectory may reduce the probability of conceding, but the addition of spatial context makes it clear that the left hand side of the actor is blocked by multiple opponents and this pass moves the ball into space on the right flank to open an attacking opportunity (in this case, a long-ranged shot)[^1]. 
+The StatsBomb Open Data repository [@StatsbombOpendata2026] provides events (e.g. carries, passes, shots) data for matches, along with *three-sixty* freeze-frames which indicate the positions of players within proximity of the acting player. Such data can be used to incorporate spatial context as a predictive feature. To illustrate this, **@fig-intro-event-example** compares a pass event from a match with and without the surrounding spatial context. Without the spatial context, this pass appears to offer limited progression towards the opponent's goal. Traditional VAEP would consider how passes of this trajectory tend to result in scoring/conceding, but the addition of spatial context differentiates this particular pass from others of similar trajectory. **@fig-intro-event-example** shows how the left hand side of the actor is blocked by multiple opponents (red) and this pass moves the ball into space on the right flank to open an attacking opportunity (in this case, a long-ranged shot)[^1]. Spatial context could allow finer-grained differentiation, rather than aggregating all passes of this trajectory.
 
 [^1]: The pass event id is '`{python} intro_event_example_id`' and the subsequent long-ranged shot event id is '`{python} intro_event_example_shot_id`'
 
-![Pass Event With and Without Freeze Frame](figures/intro_event_example.png){#fig-intro-event-example}
+![Pass Event With and Without Freeze-Frame](figures/intro_event_example.png){#fig-intro-event-example}
 
-## Research Objectives
+{{< pagebreak >}}
 
-As such, the aim of this proposed project is to determine to what extent the addition of spatial context features enhances the standard VAEP model. 
+# Research Objectives
 
- - Develop embedding representations of spatial context from StatsBomb 360 freeze-frame data using deep learning techniques
- - Train and evaluate VAEP models, both with and without the inclusion of spatial context embeddings, using supervised classification algorithms.
- - Compare VAEP models using appropriate peformance metrics and  
+The general aim of this proposed project is to determine to what extent the addition of spatial context features enhances the standard VAEP model. This entails the following objectives:
 
-# Previous Research
+ - Develop representations of spatial context from StatsBomb 360 freeze-frame data using feature engineering and deep learning techniques.
+ - Train and evaluate VAEP models, both with and without the inclusion of spatial context representations, using supervised classification algorithms.
+ - Compare and interpret these VAEP models using appropriate peformance metrics and an exploration of feature importance.
 
+# Background
+
+In soccer analytics, *actions* refer to a *type of event* within a match which is caused by a player (e.g. a pass), with *events* being the broader set of significant occurrences in a match (e.g. passes, but also substitutions, fouls etc.) [@decroosActionsSpeakLouder2019]. Typical performance metrics focus on action outcomes, such as goals, assists and pass completion rates. Whilst such metrics can be used to determine the value of some actions and are useful for summarising player ability, soccer analytics has developed metrics to help generalise this notion of action value. Moreover, models used to assign value to actions have been enhanced by incorporating the locations of teammates and opponents, leading to improved performance and interpretability. 
+
+As such, this section will introduce the VAEP metric and outline how spatial context has been successfully incorporated into other action valuation metrics, motivating this proposed project's research objectives.
 
 ## Valuing Actions by Estimating Probabilities (VAEP)
 
+@decroosActionsSpeakLouder2019 introduce Valuing Actions by Estimating Probabilities (VAEP). VAEP values actions in terms of the probability of scoring and the probability of conceding within the next $k$ actions. @eq-vaep defines the VAEP of an action $a_{i}$ for team $x$.
+
 $$
-V(a_{i}) = \Delta P_{score} - \Delta P_{concede}
+V(a_{i}, x) = \Delta P_{scores}(a_{i}, x) - \Delta P_{concedes}(a_{i}, x)
 $$ {#eq-vaep}
 
-Where $V(a_{i}) \in [-1,1]$
+If we consider a match as a sequence of $m$ on-ball actions $[a_{1},\dots,a_{m}]$, we can view some game state $S_{i}$ which corresponds to some subset of actions $[a_{1},\dots,a_{i}]$ and determine how the last action in the game state $a_{i}$ changed the probability of team $x$ scoring and conceding within the next $k$ actions. The change in the probability of scoring (and conceding) from the previous game state $S_{i-1} = [a_{1},\dots,a_{i-1}]$ to the current game state $S_{i}$ can be determined by simply finding their difference:
+
+$$
+\begin{align}
+\Delta P_{\text{scores}}(a_{i},x) &= P_{\text{scores}}(S_{i},x) - P_{\text{scores}}(S_{i-1},x) \\[20pt]
+\Delta P_{\text{concede}}(a_{i},x) &= P_{\text{concede}}(S_{i},x) - P_{\text{concede}}(S_{i-1},x) 
+\end{align}
+$$ {#eq-vaep-score-concede-probs}
+
+These two probabilities are estimated using two supervised classification algorithms, one which estimates scoring, and the other conceding, within the next $k$ actions. The feature sets used across these two models are identical, all that varies is the labels (scoring or conceding). @decroosActionsSpeakLouder2019 used a feature set which corresponds to the Soccer Player Action Description Language (SPADL) format involving $9$ features, most notably the action's start and end locations, and the type of action. The authors also add "complex features", such as the time elapsed between consecutive actions, as well as "game context features", such as the scoreline at the time of the action and the amount of time remaining. 
+
+@decroosActionsSpeakLouder2019 initially compared logistic regression, a random forest, XGBoost and CatBoost, finding CatBoost to perform best across both the scoring and conceding models in terms of the Brier Score and the Area Under the Receiver Operating Characteristic Curve (AUC-ROC). @decroosActionsSpeakLouder2019 also extend the VAEP metric by using it to provide player ratings, where the VAEP of each action in a player's set of actions $A_{p}^{T}$ across some time frame $T$ are considered cumulatively, and normalised per-$90$ minutes played during $T$.
+
+$$
+\text{rating}(p) = \frac{90}{m}\sum_{a_{i} \in A_{p}^{T}} V(a_{i})
+$$ {#eq-vaep-player-rating}
+
+The authors compare these VAEP player ratings against traditional metrics like goals and assists per-$90$, as well as market valuations of players. The authors found the top-$10$ highest players ranked by VAEP captured players typically considered to be amongst the best in the Premier League, despite them not appearing in the top-$10$ goals + assists per-$90$ ranking. The top-$10$ VAEP ranked list also had a higher overall market valuation than the top-$10$ goals + assists per-$90$ ranked list (€$1,110$ Million vs $947 Million$), which suggests VAEP more comprehensively represent player value compared to tranditional metrics.
+
+
+
+The addition of spatial context has been successfully applied to related action value metrics...
+
+Expected goals (xG) is an approach commonly used for assigning value to individual shots [@AssessingPerformancePremier; @macdonaldExpectedGoalsModel2012]. General to xG approaches is the representation of the value of some shot as the probability that it results in a goal. These goal probabilities are estimated via various classification algorithms such as logistic regression, gradient boosting and deep learning methods [@meadExpectedGoalsFootball2023]. Features used in xG models typically include *action-intrinsic* variables such as distance/angle to the centre of the opponent's goal and the body part used, along with *match-context* variables such as the current match scenario (e.g. set piece, open play) [@anzerGoalScoringProbability2021; @meadExpectedGoalsFootball2023;  @robberechtsHowDataAvailability2020].
+
+@cefisNewXGModel2025 incorporate spatial context into the xG model by considering the number of players ahead of the shooter ($x$ co-ordinate greater than the shooter's) within a fixed radius ($y$ co-ordinate $\pm10\%$ of the shooter's). From this count, they derive two binary variables `D1.OpponentsPlayer` and `D2.OpponentsPlayer`, where the former equals $1$ when the number of players in this area is greater than $0$, and the latter equals $1$ when the number of players in the area is greater than $1$. They also consider the $x$ and $y$ co-ordinates of the opponent's goalkeeper (`GK x coordinate`, `GK y coordinate`). Table 3 in @cefisNewXGModel2025 show the coefficients and odds ratios of each feature in their logistic regression xG model across their $4$ different techniques for addressing class imbalance. `D1.OpponentsPlayer`, `D2.OpponentsPlayer`, and `GK x coordinate` all have negative coefficients, indicating a reduction in the log odds of the shot resulting in a goal. This is particularly pronounced for `D2.OpponentsPlayer`, with a coefficient range of $-6.13$ to $-5.69$, indicating that the probability of scoring (i.e. xG) is reduced by around $99.73\%$ (because $1 - e^{(-5.69 + -6.13)/2} \approx 0.9973$) when there is more than $1$ opposition defender within proximity of the shooter. This finding matches intuitions about the influence of the opposition's positioning on goal probability and highlights how the addition of spatial context dureing modelling can enhance the xG metric.
+
+A further action value metric is expected threat (xT). xT measures the value of actions based on where on the pitch the action moves the ball from and to. @SinghIntroducingExpectedThreat2018 derived the following equation for calculating the xT of a given location on the pitch:
+
+$$
+\text{xT}_{x,y} = (s_{x,y} \times g_{x,y}) \left( m_{x,y} \times \sum_{z=1}^{Z}\sum_{w=1}^{W} T_{(x,y) \to (z,w)} \text{xT}_{z,w} \right)
+$$ {#eq-xt}
+
+If we discretise the football pitch into some $Z \times W$ (@SinghIntroducingExpectedThreat2018 uses $Z=16$ and $W=12$) set of equally-sized square zones $(x,y)$, we can consider three possible attacking options when the ball is in some zone $(x,y)$: shoot, carry or pass. $(s_{x,y} \times g_{x,y})$ quantifies the value of shooting from zone $(x,y)$ by weighting the probability of scoring $g_{x,y}$ by the probability of shooting $s_{x,y}$. The other two options, carrying or passing, involve moving the ball from $(x,y)$ to $(z,w)$. The transition matrix $T_{(x,y)}$ provides the probablity of moving the ball from zone $(x,y)$ to any zone $(z,w)$ after $1$ time step. If we consider all $Z \times W$ possible options and multiply their transition probabilities by the value of its respective $(z,w)$ zone, we can take their sum and weight it by the probability of actually moving the ball to another zone when in $(x,y)$. This provides a quantification of passing or carrying the ball, which when multiplied by the shot-probability weighted xG of zone $(x,y)$ provides the xT of the ball being at zone $(x,y)$. However, given that @eq-xt assumes that the value of each zone $(\text{xT}_{z,w})$ is already known a-priori, we must estimate its value. The xT model thus begins by setting every zone $(x,y)$ to have an xT of $0$. This simplies @eq-xt to essentialy be the xG of zone $(x,y)$, weighted by how likely players are to actually shoot from that zone:
+
+$$
+\text{xT}_{x,y} = (s_{x,y} \times g_{x,y})
+$$ {#eq-xt-first-iteration}
+
+We can then take the xT values from this first iteration and recalculate them iteratively until convergence. @SinghIntroducingExpectedThreat2018 suggests $4$--$5$ iterations are sufficient but that this may vary across datasets. To then assign xT to an action, we simply subtract the xT of the end location of the action (i.e. the xT of zone $(z,w)$) by the xT of the start location (the xT of zone $(x,y)$). This approach is useful for allowing us to determine the value of any on-ball attacking action, not just shots. We can also quantify genuinely valuable actions at any point during a chain of actions (e.g. an incisive pass during a sequence which ends in a goal), rather than suffering from a bias towards teminating actions (goals, assists).
+
+@everettContextualExpectedThreat2022 introduce spatial context to the xT transition matrix $T_{(x,y)}$ via a pitch control [@spearmanPhysicsBasedModelingPass2017] and interception model [@BurrielQuestForTheRightPass2021] which was used to train a convolutional neural network (CNN) to produce the transition probabilities for their contextual transition matrix $T_{(x,y)}^{\star}$. The pitch control model considers the probability of a player controlling the ball as a function of their distance from opposition players, whilst the interception model introduces an additional transition probability, that being the probability of the ball being intercepted when moving from zone $(x,y)$ to its intended destination $(z,w)$. @everettContextualExpectedThreat2022 found the introduction of spatial context yielded a modest improvement in terms of model fit, reducing the log likelihood of the xT model from -5.137 to -4.151. Greater gains were found in its useful applications to tactical analysis, such as enabling the authors to apply a Basin-Hopping optimiser [@walesGlobalOptimizationBasinHopping1997] to find more optimal defensive shapes than which actually occurred during actions, using their derived Threat Above Expected (TAx) metric as the algorithm's loss function.
 
 # Methodology
 
@@ -71,47 +120,106 @@ The proposed project will use data from StatsBomb's Open Data repository. This r
  - **matches:** A directory containing a single JSON file for a season in a given competition, providing summary information about each match played in that season (e.g. match date, home/away teams and scores).
  - **three-sixty:** A directory containing a single JSON file for each match, providing data for each event in a given match detailing the position of each player in the broadcaster's frame at the moment of that event.
 
-The proposed project will use data corresponding to `{python} number_of_matches` matches from UEFA Men's Euro 2020 & 2024, UEFA Women's Euro 2022 & 2025, FIFA Men's World Cup 2022, FIFA Women's World Cup 2023. Unlike most competitions in this repository, **three-sixty** data is available for every match in this sample, enabling player positional context to be incorporated into feature engineering for XXXXXX match events.
+@decroosActionsSpeakLouder2019, along with VAEP, introduce the Soccer Player Action Description Language (SPADL) as a data engineering format to enable "human-interpretable, simple and complete" records of actions within football matches. A variant of this format will be used in this proposed project for the baseline feature set, that being Atomic-SPADL [@IntroducingAtomicSPADLNew2020]. Atomic-SPADL represents an action without considering its result (success vs failure), unlike SPADL which includes the result. An example of the effect this has on action representation is that a pass (one action under SPADL) is separated into two actions: the giving of the pass, and the reception of the pass. An additional "interception" action type is introduced to enable incomplete passes to be captured. Atomic-SPADL therefore introduces more precision in how actions are represented as actions are now indivisible (hence atomic). This atomic-SPADL format will then be augmented in this proposed project by the addition of engineered spatial features. 
+
+The proposed project will use *events* and *three-sixty* data corresponding to `{python} format(number_of_matches, ",")` matches from UEFA Men's Euro 2020 & 2024, UEFA Women's Euro 2022 & 2025, FIFA Men's World Cup 2022, FIFA Women's World Cup 2023. Unlike most competitions in this repository, *three-sixty* data is available for every match in this sample, enabling player positional context to be incorporated into feature engineering for `{python} format(number_of_events, ",")` match events.
 
 ### Limitations of Datasets
 
-Football analysts often makes use of tracking data [@goesUnlockingPotentialBig2021]. Rather than considering discrete time events, tracking data provides a continuous record of player and ball position for the duration of a match. This enables analysts to model actions in matches as continuous processes, accounting for the position and movements of the entire team, unlike with events data. Such tracking data is often proprietory and is thus not available for public use [@bassekIntegratedDatasetSpatiotemporal2025]. This limits the scope of the present project to viewing events as discrete in time, thus losing some surrounding context which may be informative. 
+Football analysts often makes use of tracking data [@goesUnlockingPotentialBig2021]. Rather than considering discrete time events, tracking data provides a continuous record of player and ball position for the duration of a match. This enables analysts to model actions in matches as continuous processes, accounting for the position and movements of the entire team, unlike with events data. Such tracking data is often proprietory and is thus not available for public use [@bassekIntegratedDatasetSpatiotemporal2025]. This limits the scope of the present project to viewing events as discrete in time, thus losing some surrounding context which may be informative (e.g. player movement direction and velocity). 
 
-Events data is nonetheless relatively comprehensive, covering a much larger sample of matches than the limited publicly-available tracking data [@olthofPerspectivesDataAnalytics2025]. Furthermore, the use of StatsBomb's **three-sixty** data aims to address this limitation somewhat by providing snapshots of proximal player positions at the point of each event, allowing some inference to be made regarding team positioning during match events. However, these snapshots do not necessarily capture every player's location during an event, just those within the view of the broadcast camera [@StatsbombOpendata2026]. 
+Events data is nonetheless relatively comprehensive, covering a much larger sample of matches than the limited publicly-available tracking data [@olthofPerspectivesDataAnalytics2025]. Furthermore, the use of StatsBomb's *three-sixty* data does address this limitation somewhat by providing snapshots of proximal player positions at the point of each event, allowing some inference to be made regarding team positioning during match events. However, these snapshots do not necessarily capture every player's location during an event, just those within the view of the broadcast camera [@StatsbombOpendata2026]. 
+
+A further limitation is with the use of SPADL formatted data. Recent work by @joVERSAVerifiedEvent2026 has shown that some events data contains logical inconsistencies (i.e. sequences of events which are not logically possible), which the SPADL format does not correct for. The author develop the Verified Event Data Format for Reliable Soccer Analytics (VERSA) to address this issue using a state-transition model to automatically identify and correct logical inconsitencies, improving performance on VAEP model training. However, their results on StatsBomb data suggest that the Atomic-SPADL format still slightly outperforms VERSA. This result, along with the increased precision in action representation mentioned earlier, motivates the use of the atomic-SPADL format in this proposed project. 
+
+## Spatial Context 
+
+### Feature Engineering
+
+
+
+### Embeddings
+
+::: {#fig-player-json}
+```json
+{
+    "teammate": boolean,
+    "actor": boolean,
+    "keeper": boolean,
+    "location": [float, float]
+}
+```
+StatsBomb *three-sixty* JSON schema
+:::
+
+As seen in @fig-player-json, StatsBomb *three-sixty* data does not identify players within each freeze frame. Thus, to create embeddings for player positions, we must use a neural network which has an input layer which is *permutation invariant*. That is, the output of the network (i.e. the embeddings) should not depend on the order in which features appear in the input layer. This would enable the locations of players in each freeze-frame to be inputted into the network in any order and still produce the same embedding. It would also be useful for such a network to attend to spatial relationships that may exist across freeze-frames, such as defensive shapes.
+
+
 
 ## VAEP Model Training
-
-
 
 ### Logistic Regression
 
 $$
 P(Y = 1 | X) = \frac{1}{1+e^{\displaystyle-(\beta_{0}+\beta_{1}x_{1}+\dots+\beta_{n}x_{n})}}
-$$
+$$ {#eq-log-reg-model}
 
-#### Loss Function: Cross-Entropy Loss
+L2 Regularisation
+Limited-memory BFGS
+
+### Gradient Boosting
+
+$$
+\hat{y_{i}} = \sum_{t=1}^{T}f_{t}(x_{i}), \quad f_{t} \in \mathcal{F}
+$$ {#eq-grad-boost-model}
+
+#### Random Forest
+
+100 trees
+40 parallel threads
+
+#### XGBoost
+
+[@chenXGBoostScalableTree2016]
+
+100 trees
+maximum depth 3
+learning rate 0.1
+40 parallel threads
+
+#### Catboost
+
+[@prokhorenkovaCatBoostUnbiasedBoosting2019]
+
+40 parallel threads
+
+### Loss Functions 
+
+#### Cross-Entropy Loss
 
 $$
 H(p,q)=-\sum_{x \in X}p(x)\log q(x)
+$$ {#eq-log-loss}
+
+#### Gini impurity
+
 $$
-
-### Random Forest
-
-#### Split Criterion: Gini Impurity
-
-### XGBoost
-
-### Catboost
+G_{m}=1-\sum_{k=1}^{K}\left(\frac{n_{m_{k}}}{n_{m}}\right)^{2}
+$$ {#eq-log-gini-impurity}
 
 ## VAEP Model Evaluation Metrics
 
 ### Brier Score
 
 $$
-BS = \frac{1}{N}\sum_{j=1}^{r}\sum_{i=1}^{n}(f_{ij}-E_{ij})^{2}
-$$
+\text{BS} = \frac{1}{N}\sum_{j=1}^{r}\sum_{i=1}^{n}(f_{ij}-E_{ij})^{2}
+$$ {#eq-brier-multi}
 
-For binary classification
+For binary classification this simplifies to:
+
+$$
+\text{BS}_{\text{binary}} = \frac{1}{N}\sum_{i=1}^{N}(p_{i}-y_{i})^{2}
+$$ {#eq-brier-binary}
 
 ### AUC-ROC
 
@@ -119,7 +227,16 @@ For binary classification
 
 # Project Planning
 
+## Estimated Timeline
+
  - A Gantt Chart
+
+## Prerequisite Resources
+
+ - Python Version: 3.12.10
+     - Statsbombpy, Socceraction, mplsoccer, Statsmodels, Scikit-Learn, PyTorch
+ - Positron, Quarto, Typst
+ - My hardware (CPU, GPU, RAM)
 
 # Conclusion
 

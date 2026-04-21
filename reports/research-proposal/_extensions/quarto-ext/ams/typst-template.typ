@@ -70,6 +70,7 @@
         align(center, upper(title)),
         if calc.odd(i) { align(right)[#i] }
       )
+      v(10pt)
     }),
 
     // On the first page, the footer should contain the page number.
@@ -98,7 +99,6 @@
       set align(center)
       set text(size: large-size)
       smallcaps[
-        #v(20pt)
         #number
         #it.body
         #v(5pt)
@@ -154,6 +154,7 @@
     }
 
     v(15pt, weak: true)
+
   }
 
   // Theorems.
@@ -180,7 +181,11 @@
   })
 
   // Configure paragraph properties.
-  set par(first-line-indent: 1.2em, justify: true, leading: 0.58em)
+  set par(
+    first-line-indent: 1.2em, 
+    justify: true, 
+    leading: 0.58em
+  )
   show par: set block(spacing: 1.5em)
 
   v(30pt)
