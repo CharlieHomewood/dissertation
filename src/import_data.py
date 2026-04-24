@@ -28,6 +28,7 @@ if __name__ == "__main__":
         "womens_euro_2025": {"competition_id": 53, "season_id": 315}
     }
 
+    number_of_events = 0
     number_of_matches = 0
 
     for comp_name, ids in competitions_dict.items():
@@ -100,11 +101,16 @@ if __name__ == "__main__":
 
         out_path = f"data/events_{ids['competition_id']}_{ids['season_id']}.parquet"
 
+        number_of_events += df.shape[0]
+
         df.to_parquet(out_path, index=False, compression="zstd")
 
         print(f"Saved to '~/{out_path}'")
 
     with open(f"{META_DIR}/number_of_matches.pkl", "wb") as f:
         pickle.dump(number_of_matches, f)
+    
+    with open(f"{META_DIR}/number_of_events.pkl", "wb") as f:
+        pickle.dump(number_of_events, f)
 
     print(f"FInished! Downloaded and processed {number_of_matches} matches.")
