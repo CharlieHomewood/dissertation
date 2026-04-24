@@ -8,11 +8,12 @@ authors:
 format:
     ams-typst: default
 bibliography: refs.bib
-csl: numeric.csl
+csl: apa.csl
 ---
 
 ```{python}
 #| echo: False
+import pandas as pd
 import pickle
 from IPython.display import Markdown
 
@@ -27,6 +28,8 @@ with open("../../data/metadata/number_of_matches.pkl", "rb") as f:
 
 with open("../../data/metadata/number_of_events.pkl", "rb") as f:
     number_of_events = pickle.load(f)
+
+project_resources_df = pd.read_csv("../../data/metadata/project_resources.csv")
 ```
 
 # Introduction
@@ -82,13 +85,19 @@ $$
 \text{rating}(p) = \frac{90}{m}\sum_{a_{i} \in A_{p}^{T}} V(a_{i})
 $$ {#eq-vaep-player-rating}
 
-The authors compare these VAEP player ratings against traditional metrics like goals and assists per-$90$, as well as market valuations of players. The authors found the top-$10$ highest players ranked by VAEP captured players typically considered to be amongst the best in the Premier League, despite them not appearing in the top-$10$ goals + assists per-$90$ ranking. The top-$10$ VAEP ranked list also had a higher overall market valuation than the top-$10$ goals + assists per-$90$ ranked list (€$1,110$ Million vs $947 Million$), which suggests VAEP more comprehensively represent player value compared to tranditional metrics.
+The authors compare these VAEP player ratings against traditional metrics like goals and assists per-$90$, as well as market valuations of players. The authors found the top-$10$ highest players ranked by VAEP captured players typically considered to be amongst the best in the Premier League, despite them not appearing in the top-$10$ goals + assists per-$90$ ranking. The top-$10$ VAEP ranked list also had a higher overall market valuation than the top-$10$ goals + assists per-$90$ ranked list (€$1,110$ Million vs $947 Million$), which suggests VAEP more comprehensively represents player value compared to tranditional metrics.
 
-One potential limitation of the VAEP model is that is lacks a representation of wider spatial context from the positions of teammates and opponents during actions [@desa-freireEventDataBased2025]. Whilst the use of spatial context in VAEP models is understudied, its addition has been successfully applied to alternative action value metrics. 
+One potential limitation of the VAEP model is that it lacks a representation of wider spatial context from the positions of teammates and opponents during actions [@desa-freireEventDataBased2025], due to its use of event data only. Every action taken by a player exists within a spatial context which determines the options available to a player, influencing their decision making. The use of spatial context in VAEP models is also understudied, despite its addition having been successfully applied to a number of alternative action value metrics. 
+
+## Applications of Spatial Context to Action Value Metrics
+
+### Expected Goals (xG) {#sec-xg}
 
 Expected goals (xG) is an approach commonly used for assigning value to individual shots [@AssessingPerformancePremier; @macdonaldExpectedGoalsModel2012]. General to xG approaches is the representation of the value of some shot as the probability that it results in a goal. These goal probabilities are estimated via various classification algorithms such as logistic regression, gradient boosting and deep learning methods [@meadExpectedGoalsFootball2023]. Features used in xG models typically include *action-intrinsic* variables such as distance/angle to the centre of the opponent's goal and the body part used, along with *match-context* variables such as the current match scenario (e.g. set piece, open play) [@anzerGoalScoringProbability2021; @meadExpectedGoalsFootball2023;  @robberechtsHowDataAvailability2020].
 
-@cefisNewXGModel2025 incorporate spatial context into the xG model by considering the number of players ahead of the shooter ($x$ co-ordinate greater than the shooter's) within a fixed radius ($y$ co-ordinate $\pm10\%$ of the shooter's). From this count, they derive two binary variables `D1.OpponentsPlayer` and `D2.OpponentsPlayer`, where the former equals $1$ when the number of players in this area is greater than $0$, and the latter equals $1$ when the number of players in the area is greater than $1$. They also consider the $x$ and $y$ co-ordinates of the opponent's goalkeeper (`GK x coordinate`, `GK y coordinate`). Table 3 in @cefisNewXGModel2025 show the coefficients and odds ratios of each feature in their logistic regression xG model across their $4$ different techniques for addressing class imbalance. `D1.OpponentsPlayer`, `D2.OpponentsPlayer`, and `GK x coordinate` all have negative coefficients, indicating a reduction in the log odds of the shot resulting in a goal. This is particularly pronounced for `D2.OpponentsPlayer`, with a coefficient range of $-6.13$ to $-5.69$, indicating that the probability of scoring (i.e. xG) is reduced by around $99.73\%$ (because $1 - e^{(-5.69 + -6.13)/2} \approx 0.9973$) when there is more than $1$ opposition defender within proximity of the shooter. This finding matches intuitions about the influence of the opposition's positioning on goal probability and highlights how the addition of spatial context dureing modelling can enhance the xG metric.
+@cefisNewXGModel2025 incorporate spatial context into the xG model by considering the number of players ahead of the shooter ($x$ co-ordinate greater than the shooter's) within a fixed radius ($y$ co-ordinate $\pm10\%$ of the shooter's). From this count, they derive two binary variables `D1.OpponentsPlayer` and `D2.OpponentsPlayer`, where the former equals $1$ when the number of players in this area is greater than $0$, and the latter equals $1$ when the number of players in the area is greater than $1$. They also consider the $x$ and $y$ co-ordinates of the opponent's goalkeeper (`GK x coordinate`, `GK y coordinate`). Table 3 in @cefisNewXGModel2025 show the coefficients and odds ratios of each feature in their logistic regression xG model across their $4$ different techniques for addressing class imbalance. `D1.OpponentsPlayer`, `D2.OpponentsPlayer`, and `GK x coordinate` all have negative coefficients, indicating a reduction in the log odds of the shot resulting in a goal. This is particularly pronounced for `D2.OpponentsPlayer`, with a coefficient range of $-6.13$ to $-5.69$, indicating that the probability of scoring (i.e. xG) is reduced by around $99.73\%$ (because $1 - e^{(-5.69 + -6.13)/2} \approx 0.9973$) when there is more than $1$ opposition defender within proximity of the shooter. This finding matches intuitions about the influence of the opposition's positioning on goal probability and highlights how the addition of spatial context during modelling can enhance the xG metric.
+
+### Expected Threat (xT)
 
 A further action value metric is expected threat (xT). xT measures the value of actions based on where on the pitch the action moves the ball from and to. @SinghIntroducingExpectedThreat2018 derived the following equation for calculating the xT of a given location on the pitch:
 
@@ -99,16 +108,28 @@ $$ {#eq-xt}
 If we discretise the football pitch into some $Z \times W$ (@SinghIntroducingExpectedThreat2018 uses $Z=16$ and $W=12$) set of equally-sized square zones $(x,y)$, we can consider three possible attacking options when the ball is in some zone $(x,y)$: shoot, carry or pass. $(s_{x,y} \times g_{x,y})$ quantifies the value of shooting from zone $(x,y)$ by weighting the probability of scoring $g_{x,y}$ by the probability of shooting $s_{x,y}$. The other two options, carrying or passing, involve moving the ball from $(x,y)$ to $(z,w)$. The transition matrix $T_{(x,y)}$ provides the probablity of moving the ball from zone $(x,y)$ to any zone $(z,w)$ after $1$ time step. If we consider all $Z \times W$ possible options and multiply their transition probabilities by the value of its respective $(z,w)$ zone, we can take their sum and weight it by the probability of actually moving the ball to another zone when in $(x,y)$. This provides a quantification of passing or carrying the ball, which when multiplied by the shot-probability weighted xG of zone $(x,y)$ provides the xT of the ball being at zone $(x,y)$. However, given that @eq-xt assumes that the value of each zone $(\text{xT}_{z,w})$ is already known a-priori, we must estimate its value. The xT model thus begins by setting every zone $(x,y)$ to have an xT of $0$. This simplies @eq-xt to essentialy be the xG of zone $(x,y)$, weighted by how likely players are to actually shoot from that zone:
 
 $$
-\text{xT}_{x,y} = (s_{x,y} \times g_{x,y})
+\text{xT}_{x,y}^{(0)} = (s_{x,y} \times g_{x,y})
 $$ {#eq-xt-first-iteration}
 
 We can then take the xT values from this first iteration and recalculate them iteratively until convergence. @SinghIntroducingExpectedThreat2018 suggests $4$--$5$ iterations are sufficient but that this may vary across datasets. To then assign xT to an action, we simply subtract the xT of the end location of the action (i.e. the xT of zone $(z,w)$) by the xT of the start location (the xT of zone $(x,y)$). This approach is useful for allowing us to determine the value of any on-ball attacking action, not just shots. We can also quantify genuinely valuable actions at any point during a chain of actions (e.g. an incisive pass during a sequence which ends in a goal), rather than suffering from a bias towards teminating actions (goals, assists).
 
 @everettContextualExpectedThreat2022 introduce spatial context to the xT transition matrix $T_{(x,y)}$ via a pitch control [@spearmanPhysicsBasedModelingPass2017] and interception model [@BurrielQuestForTheRightPass2021] which was used to train a convolutional neural network (CNN) to produce the transition probabilities for their contextual transition matrix $T_{(x,y)}^{\star}$. The pitch control model considers the probability of a player controlling the ball as a function of their distance from opposition players, whilst the interception model introduces an additional transition probability, that being the probability of the ball being intercepted when moving from zone $(x,y)$ to its intended destination $(z,w)$. @everettContextualExpectedThreat2022 found the introduction of spatial context yielded a modest improvement in terms of model fit, reducing the log likelihood of the xT model from -5.137 to -4.151. Greater gains were found in its useful applications to tactical analysis, such as enabling the authors to apply a Basin-Hopping optimiser [@walesGlobalOptimizationBasinHopping1997] to find more optimal defensive shapes than which actually occurred during actions, using their derived Threat Above Expected (TAx) metric as the algorithm's loss function.
 
+### Expected Possession Value (EPV)
 
+Expected possession value (EPV) [@fernandezFrameworkFinegrainedEvaluation2021] is an action valuation metric, derived from other sports such as basketball [@cervoneMultiresolutionStochasticProcess2016], which exploits tracking data to assign value to a game state (e.g. during an action) at time $t$ via a consideration of all possible subsequent paths it can take.
 
-These examples demonstrate the utility provided by incorporating spatial context into action valuation models
+$$
+\text{EPV}_{t} = \sum_{a \in A} \mathbb{E}[G|A = a, T_{t}] \quad \mathbb{P}(A=a|T_{t})
+$$ {#eq-epv}
+
+@eq-epv shows that the EPV at time $t$ for some action is determined by the expected value of $G$ (typically a goal being scored or not) given some action $a$ has occurred in some spatiotemporal context $T_{t}$, multiplied by the probability of that action $a$ occurring in the spatiotemporal context $T_{t}$. For each action $a$ considered in the action set $A$, we sum these expected values to provide an EPV of some game state at time $t$. Thus EPV can be applied to any game state, not simply at the time at which discrete match events or actions occur.
+
+We can see from the term $T_{t}$ that EPV relies upon spatial context to operate. @fernandezFrameworkFinegrainedEvaluation2021 list a number of spatial features used in the EPV model, such as pitch control, number of players within $3$m of the ball location, and the number of players within the area circumscribed by the ball and the two posts of the opponent's goal. EPV is thus inherently sensitive to spatial context in its valuation of actions. The utility provided by EPV's incorporation of spatial context is explored by @fernandezFrameworkFinegrainedEvaluation2021. For example, they use EPV to determine the on-ball (passes with positive EPV) and off-ball (pitch locations with positive EPV if a pass were to arrive there) advantage Liverpool in 2014/15 had during possession when up against different opponent formations. This analysis shows both where Liverpool were successful and unsuccessful in their passing decision (on-ball) and also where valuable regions of the pitch are to direct passes towards during build-up (off-ball). Such an analysis is extremely useful for tactical decision making as, in response to opposition pressing structures, teams can evaluate where on the pitch they should look to progress the ball towards to be most effective during build-up play, and to evaluate how successful their current approach is.
+
+### Summary
+
+To summarise, the discussed applications demonstrate the utility provided by incorporating spatial context into action valuation models. Given the lack of investigation into augmenting VAEP models with wider spatial context, this proposed projects aims to address this research gap and explore what role representations of spatial context play in altering model behaviour and, potentially, performance. 
 
 # Methodology
 
@@ -132,15 +153,21 @@ Football analysts often makes use of tracking data [@goesUnlockingPotentialBig20
 
 Events data is nonetheless relatively comprehensive, covering a much larger sample of matches than the limited publicly-available tracking data [@olthofPerspectivesDataAnalytics2025]. Furthermore, the use of StatsBomb's *three-sixty* data does address this limitation somewhat by providing snapshots of proximal player positions at the point of each event, allowing some inference to be made regarding team positioning during match events. However, these snapshots do not necessarily capture every player's location during an event, just those within the view of the broadcast camera [@StatsbombOpendata2026]. 
 
-A further limitation is with the use of SPADL formatted data. Recent work by @joVERSAVerifiedEvent2026 has shown that some events data contains logical inconsistencies (i.e. sequences of events which are not logically possible), which the SPADL format does not correct for. The author develop the Verified Event Data Format for Reliable Soccer Analytics (VERSA) to address this issue using a state-transition model to automatically identify and correct logical inconsitencies, improving performance on VAEP model training. However, their results on StatsBomb data suggest that the Atomic-SPADL format still slightly outperforms VERSA. This result, along with the increased precision in action representation mentioned earlier, motivates the use of the atomic-SPADL format in this proposed project. 
+A further limitation is with the use of SPADL formatted data. Recent work by @joVERSAVerifiedEvent2026 has shown that some events data contains logical inconsistencies (i.e. sequences of events which are not logically possible), which the SPADL format does not correct for. The authors develop the Verified Event Data Format for Reliable Soccer Analytics (VERSA) to address this issue using a state-transition model to automatically identify and correct logical inconsitencies, improving performance on VAEP model training. However, their results on StatsBomb data suggest that the atomic-SPADL format still slightly outperforms VERSA. This result, along with the increased precision in action representation mentioned earlier, motivates the use of the atomic-SPADL format in this proposed project, but it is recognised that the potential data integrity issues highlighted by @joVERSAVerifiedEvent2026 will not be explicitly handeled as implementing VERSA is non-trivial and thus beyond the scope of this proposed project. 
 
-## Spatial Context 
+## Data Preprocessing
 
-### Feature Engineering
+With StatsBomb events and *three-sixty* data collected, VAEP requires this data be converted into the Atomic-SPADL format. This preprocessing step can be achieved by the `socceraction` package [@QuickstartSocceraction153, @decroosActionsSpeakLouder2019], which has functions such as `convert_to_atomic` and the `AtomicVAEP` class to handle StatsBomb events data for VAEP modelling. 
 
+This proposed project intends to augment VAEP with additional spatial context features, outlined in @sec-manual-spatial-feature-engineering and @sec-spatial-embeddings-set-transformer, which deviates from the standard atomic-SPADL format, and requires manual data engineering and transformer model training.
 
+## Manual Spatial Feature Engineering {#sec-manual-spatial-feature-engineering}
 
-### Embeddings
+Previous research has represented spatial context using features engineered from spatial data. 
+
+As described in @sec-xg, @cefisNewXGModel2025 derived two binary features `D1.OpponentsPlayer` and `D2.OpponentsPlayer` from player $x$ and $y$ co-coordinates, indicating the number of players within the immediate frontal proximity of the shooter.
+
+@amichayCharacterizingSpatialStructures2025 measured the areas of convex hulls and inner layers to represent team shapes. A convex hull, in this context, is the area inscribed between the outer-most positioned players on the pitch for a given team. A larger area corresponds to a wider/longer team shape, whereas a smaller area is narrower/shorter. Since this convex hull only considers the outer-most players, a second convex layer can be created from the players who do not contribute to the hull. The ratio of these two areas forms the author's derived Layer Ratio (LR) metric, which summarises the compactness of the team shape.
 
 ::: {#fig-player-json}
 ```json
@@ -151,94 +178,215 @@ A further limitation is with the use of SPADL formatted data. Recent work by @jo
     "location": [float, float]
 }
 ```
-StatsBomb *three-sixty* JSON schema
+StatsBomb *three-sixty* freeze-frame JSON schema
 :::
 
-As seen in @fig-player-json, StatsBomb *three-sixty* data does not identify players within each freeze frame. Thus, to create embeddings for player positions, we must use a neural network which has an input layer which is *permutation invariant*. That is, the output of the network (i.e. the embeddings) should not depend on the order in which features appear in the input layer. This would enable the locations of players in each freeze-frame to be inputted into the network in any order and still produce the same embedding. It would also be useful for such a network to attend to spatial relationships that may exist across freeze-frames, such as defensive shapes.
+@fig-player-json outlines the JSON schema for StatsBomb *three-sixty* freeze-frames. Each freeze-frame JSON object has an associated `event_uuid` to enable joins with events data, and a `visible_area` polygon which indicates the viewing area from the broadcast camera at the moment the action took place. We can see from the available data, that it is possible to construct the opposition proximity metric from @cefisNewXGModel2025 and a partial convex hull area or LR as explored by @amichayCharacterizingSpatialStructures2025. Given that the sample in this proposed project applies to on-ball actions, not just shots, the opposition proximity metric from @cefisNewXGModel2025 could be adapted to consider a $\ang{360}$ radius around the player, rather than a frontal semi-circle. 
 
+Thus, for this proposed project, the following spatial features will be engineered for teammates and opponents, respectively, using *three-sixty* data. These are both inspired by the literature and also chosen by myself:
 
+ - Euclidean distance to nearest teammate (meters)
+ - Euclidean distance to nearest opponent (meters)
+ - Number of teammates within $x$ meters of the actor[^2]
+ - Number of opponents within $x$ meters of the actor
+ - Average Euclidean distance to teammates in freeze-frame (meters)
+ - Standard deviation of Euclidean distance to teammates in freeze-frame (meters)
+ - Average Euclidean distance to opponents in freeze-frame (meters)
+ - Standard deviation of Euclidean distance to opponents in freeze-frame (meters)
+ - Teammate convex hull area (based on players within freeze-frame) ($m^{2}$)
+ - Opponent convex hull area (based on players within freeze-frame) ($m^{2}$)
 
-## VAEP Model Training
+[^2]: $x$ will be left as a hyperparameter to be chosen during feature engineering and training, but will be reported as an exact value in the write up.
+
+## Spatial Embeddings: Set Transformer {#sec-spatial-embeddings-set-transformer}
+
+An alternative way to represent spatial context is in the form of spatial embeddings. A spatial embedding is a real-valued vector used to represent a set of geometric objects (in this case, player co-ordinates) in a fixed $d$-dimensional space. These embeddings can represent non-linear relationships between objects and thus may serve to represent patterns, like defensive and offensive team structures during actions.
+
+However, as seen in @fig-player-json, StatsBomb *three-sixty* data does not identify individual players within each freeze frame (except from the actor). Thus, to create embeddings for player positions, we must use a neural network which has an input layer which is *permutation invariant*. That is, the output of the network (i.e. the embeddings) should not depend on the order in which features appear in the input layer. This would enable the locations of players in each freeze-frame to be inputted into the network in any order and still produce the same embedding. It would also be useful for such a network to attend to spatial relationships that may exist across freeze-frames, such as defensive shapes.
+
+One useful technique for developing a permutation-invariant network for spatial embeddings is a *set transformer* [@leeSetTransformerFramework2019]. A set transformer is a variation on the standard transformer architecture from @vaswaniAttentionAllYou2017 which can be used to process sets such that the output of the transformer is invariant to how elements in the set are permuted when entering into the model. 
+
+Transformers use multihead attention layers in a traditional encoder-decoder architecture. Attention works by projecting an input sequence $X \in \mathbf{R}^{n \times d}$ into different learned linear projections of the input embeddings: $Q=XW_{Q}, K=XW_{K}, V=XW_{V} \in \mathbb{R}^{n\times d}$. Each row corresponds to a token representation in a different learned subspace. The attention mechanism determines how much each token should attend to other tokens by computing similarity between query vectors and key vectors. If the similarity between a query and a key is high, the corresponding value vector contributes more strongly to the output representation. This is computed for all tokens simultaneously, producing pairwise interactions between all elements in the sequence, including self-interactions. The attention mechanism achieves this via scaled dot-product attention:
+
+$$
+\text{Attention}(Q,K,V) = \text{softmax}\left(\frac{QK^{\top}}{\sqrt{d_{k}}}\right)V
+$$ {#eq-attention}
+
+Multihead attention then involves performing this scaled dot-product attention in parallel $h$ times, each with their own set of $Q,K,V$ matrices. Outputs are then concatenated and fed into a standard feedforward neural network. 
+
+The multi-head attention mechanism of standard transformers is adapted in set transformers via *induced set attention blocks* (ISABs). An ISAB performs self-attention between set elements introducing *inducing points* which contain parameters learned during training. These inducing points are some fixed-sized vector $I$ and attend to the inputted set $X$ to produce a transformed set $H$. The input set $X$ then attends to $H$ to produce a final set of $n$ elements. This method improves computational efficiency as the size of the inducing points vector $|I|$ can be set to be smaller than the input size $|X|$, thus avoiding standard pairwise self-attention and reducing time complexity from $O(n^{2})$ to $O(nm)$ where $m < n$.
+
+Set transformers enable permutation invariance by dropping position encodings of set elements and pool outputs via pooling with multihead attention (PMA). PMA works similarly to multihead attention but instead pools the representations of each element of the set into $k$ vectors, each providing a representation of the whole set. $k$ is typically set to $1$, provding a single representation of the set, but $k>1$ is permitted. The queries $Q$ are a fixed set of learned *seed vectors* $S$. Reordering the set will thus result in the same pooled representation via PMA, enabling permutation invariance.
+
+Applications of set transformers in soccer analytics have typically fallen in the domain of trajectory prediction. @kimBallTrajectoryInference2023 apply set transformers in the context of soccer analytics. @kimBallTrajectoryInference2023 use set transformers to encode representations of player trajectories from tracking data snapshots to infer ball trajectories. @capelleraFootbotsTransformerBasedArchitecture2024 similarly developed FootBots using set transformer architecture to improve player and ball motion prediction over traditional models. Whilst this domain deviates from this proposed project, these studies do highlight the appropriateness of using set transformers to encode player positions.
+
+This proposed project seeks to use set transformers to produced fixed-sizes spatial embeddings for each team's set of players within each freeze-frame sample. This can be achieved by first converting each individual co-ordinate pair into an embedding via an initial multilayer perceptron (MLP) sublayer. Each set of individual co-ordinate embeddings for each team in each freeze-frame can then be passed as an input tensor to the set transformer which will produce embedding representations of each set of co-ordinates. The initial embedding of co-ordinate pairs is necessary to ensure the set transformer has enough dimensions to learn from whereas simply having $2$ dimensions (i.e. $x$ and $y$) would be insufficient to capture multiple non-linear relationships. Tthe hyperparameters of the initial MLP sublayer and the set transformer will be determined during feature engineering and reported in the write up. 
+
+## Model Training
+
+@decroosActionsSpeakLouder2019 use $4$ different supervised classification techniques to estimate scoring and conceding probabilities, enabling VAEP calculations. This proposed project will replicate the implementation of these same $4$ techniques as closely as possible, albeit they do not provide comprehensive details on the Python version used, package versions, or all model hyperparameters.
+
+Given that VAEP requires two concurrent classifiers to be trained for scoring and conceding probability estimates, respectively, and the introduction of manually engineered spatial features and spatial embeddings will result in a total of $32$ individual classifier models being trained, enablining the construction of: baseline VAEP; baseline + manual features; baseline + embeddings; and baseline + manual features + embeddings models. This ablation design allows for the impact of adding spatial context on model performance and behaviour to be investigated.
 
 ### Logistic Regression
 
+Logistic regression [@coxRegressionAnalysisBinary1958] is a classification technique which estimates the probability that a given data instance belongs to some reference class (i.e. an action results in a goal scored/conceded vs no goal scored/conceded, within $k$ events). Logistic regression learns a vector of weights $\mathbf{w}$ and bias $b$ which minimises cross-entropy loss and produces a probability estimate for the data instance beloning to the reference class:
+
 $$
-P(Y = 1 | X) = \frac{1}{1+e^{\displaystyle-(\beta_{0}+\beta_{1}x_{1}+\dots+\beta_{n}x_{n})}}
+P(Y = 1 | X) = \frac{1}{1+e^{\displaystyle-(\mathbf{w}^{\top}\mathbf{x} + b)}}
 $$ {#eq-log-reg-model}
 
-L2 Regularisation
-Limited-memory BFGS
+@decroosActionsSpeakLouder2019 report the use of L2 Regularisation and Limited-memory BFGS, which will be replicated in this proposed project.
+
+L2 regularisation introduces an additional penalty term to the loss function (in this case cross-entropy loss, see @sec-loss-function-cross-entropy-loss). This penality term is some multiple $\lambda \in \mathbb{R}^{+}$ of the sum of squared weights:
+
+$$
+\text{L2} = \lambda \sum_{i=1}^{N}w_{i}^{2}
+$$ {#eq-l2}
+
+`scikit-learn` uses a hyperparameter $C = \frac{1}{\lambda}$ to control regularisation strength, which is set to $1$ by default. Since the authors do not specify otherwise, this default will be maintained for training.
+
+Limited-memory BFGS [@liuLimitedMemoryBFGS1989] is a computationally-efficient optimisation method, used in logistic regression to iteratively minimise the loss function during training. Again, this hyperparameter is the default for `scikit-learn`.
+
+### Random Forest
+
+A random forest [@breimanRandomForests2001] is an ensemble method which aggregates results from multiple decision trees. In a classification task, this aggregation is employed by majority voting. For each data instance, the class predictions made by each tree in the forest are counted up and the class with the most "votes" is outputted as the predicted class for that instance. 
+
+@decroosActionsSpeakLouder2019 indicate that they used $100$ trees and $40$ parallel threads to train their random forest models. Thus this proposed project will also use $100$ trees. However, the number of parallel threads simply determines the number of concurrent processes used, which does not impact model behaviour other than via its runtime. Since my hardware is different to the authors', this hyperparameter will be chosen during training and reported in the write up.
 
 ### Gradient Boosting
 
+Gradient boosting [@friedmanGreedyFunctionApproximation2001] is another ensemble method that constructs a "strong" predictor by sequentially adding "weak" learners, where each new learner is trained to correct the errors of the previous ensemble.
+
 $$
-\hat{y_{i}} = \sum_{t=1}^{T}f_{t}(x_{i}), \quad f_{t} \in \mathcal{F}
+\hat{y}_{i} = \sum_{t=1}^{T}\eta f_{t}(x_{i}), \quad f_{t} \in \mathcal{F}
 $$ {#eq-grad-boost-model}
 
-#### Random Forest
-
-100 trees
-40 parallel threads
+Each function $f_{t}$ is learned sequentially to minimise a loss function (like cross-entropy loss). At each iteration, the new weak learner is fit to the negative gradient of the loss with respect to the current model predictions.
 
 #### XGBoost
 
-[@chenXGBoostScalableTree2016]
+XGBoost [@chenXGBoostScalableTree2016] builds upon standard gradient boosting by incorporating regularisation and introducing improved computational efficiency, even being capable of handling sparse data. @decroosActionsSpeakLouder2019 use $100$ trees which are allowed to reach a maximum depth of $3$ nodes. The learning rate $\eta$, used to determine how much the next tree contributes to model estimates, is equal to $0.1$. Again, $40$ parallel threads are used. Each of these hyperparameters (except the parallel threads) will be held constant in this proposed project.
 
-100 trees
-maximum depth 3
-learning rate 0.1
-40 parallel threads
+#### CatBoost
 
-#### Catboost
+CatBoost [@prokhorenkovaCatBoostUnbiasedBoosting2019] is a gradient boosting method which is optimised for processing categorical predictors without requiring manual one-hot encoding. @decroosActionsSpeakLouder2019 retain the default hyperparameters for CatBoost [@CatBoostClassifier], and again use $40$ parallel threads. It is expected, in line with @decroosActionsSpeakLouder2019, that CatBoost should perform best in terms of Brier score and AUC-ROC, within each model variant. Should deviations from the original VAEP results emerge, they will be discussed in the write up.
 
-[@prokhorenkovaCatBoostUnbiasedBoosting2019]
+### Loss Function: Cross-Entropy Loss {#sec-loss-function-cross-entropy-loss}
 
-40 parallel threads
-
-### Loss Functions 
-
-#### Cross-Entropy Loss
+Logistic regression, XGBoost and CatBoost each minimise cross-entropy loss in their classification predictions, according to their default implementations in the aforementioned Python packages. Cross-entropy measures how "surprised" the model is by observations drawn from the true data-generating distribution $p(x)$, when evaluated under the predicted distribution $q(x)$. If the model tends to assign low probability to data instances which are probable under $p(x)$, then cross-entropy will be high. A low cross-entropy is found when $q(x)$ approximates $p(x)$ well.
 
 $$
 H(p,q)=-\sum_{x \in X}p(x)\log q(x)
 $$ {#eq-log-loss}
 
-#### Gini impurity
+### Split Criterion: Gini impurity
+
+Whilst the split criterion used for the random forest models is not specified, the authors do indicate that they "used the implementation from the `scikit-learn` Python package" [@decroosActionsSpeakLouder2019, p. 1860]. It is thus inferred that they use the default split criterion of Gini impurity [see @RandomForestClassifier; @pedregosaScikitlearnMachineLearning2011].
+
+Gini impurity indicates the probability of assigning an incorrect label to a randomly chosen data instance by simply using the relative frequence of each label's occurrence in the data. 
 
 $$
 G_{m}=1-\sum_{k=1}^{K}\left(\frac{n_{m_{k}}}{n_{m}}\right)^{2}
-$$ {#eq-log-gini-impurity}
+$$ {#eq-gini-impurity}
 
-## VAEP Model Evaluation Metrics
+Decision trees within random forest classifiers, at each splitting decision, choose the feature and value threshold $s$ which minimises the sum of the weighted Gini impurities of each partition $m$:
+
+$$
+G_{\displaystyle m_{\displaystyle <s}/\displaystyle m_{\displaystyle >s}} = \frac{n_{\displaystyle m_{\displaystyle <s}}}{n_{m}}G_{\displaystyle m_{\displaystyle <s}} + \frac{n_{\displaystyle m_{\displaystyle >s}}}{n_{m}}G_{\displaystyle m_{\displaystyle >s}}
+$$ {#eq-gini-split}
+
+This results in the "purest" possible split and thus corresponds to the most discriminative splitting decision available. This process then iterates on each node in the decision tree until leaf nodes are reached which each only contain a single class (in this case, $0$ or $1$). Data instances can then be classified according to this derived decision tree.
+
+## Model Evaluation Metrics
+
+### Area Under the Receiver Operating Characteristic Curve (AUC-ROC)
+
+A receiver operating characteristic curve (ROC) is produced by plotting the true-positive rate (TPR) against the false positive rate (FPR) for each probability threshold a model could use to classify a data instance into the reference class (i.e. the action results in a goal scored/conceded within $k$ events).
 
 ### Brier Score
 
+@decroosActionsSpeakLouder2019 use the Brier score [@brierVERIFICATIONFORECASTSEXPRESSED1950] to measure the performance of the VAEP classifier models by comparing the model's predicted probability of a data instance belonging to a class with its true class membership.
+
 $$
-\text{BS} = \frac{1}{N}\sum_{j=1}^{r}\sum_{i=1}^{n}(f_{ij}-E_{ij})^{2}
+\text{BS} = \frac{1}{N}\sum_{i=1}^{N}\sum_{k=1}^{K}(p_{ik}-y_{ik})^{2}
 $$ {#eq-brier-multi}
 
-For binary classification this simplifies to:
+This is effectively equivalent to the mean squared error, where predictions equate to probabilities of belonging to the $k^{th}$ class and the true values are a one-hot encoding of that data instance's membership of that $k^{th}$ class.For binary classification this simplifies to:
 
 $$
 \text{BS}_{\text{binary}} = \frac{1}{N}\sum_{i=1}^{N}(p_{i}-y_{i})^{2}
 $$ {#eq-brier-binary}
 
-### AUC-ROC
+A lower Brier score indicates that the model's predicted probabilities are, on average, closer to the true outcomes.
 
 ### Cross-Entropy Loss
+
+Cross-entropy loss was introduced as a loss function in @sec-loss-function-cross-entropy-loss, but it may also be used as a classification model evaluation metric. This proposed project intends to use cross-entropy loss to evaluate each of the two classifier models which constitute each VAEP model. 
+
+### Expected Calibration Error (ECE)
+
+Expected calibration error (ECE) [@naeiniObtainingWellCalibrated2015] is a performance metric used to evaluate the ability of a classification model to make accurate predictions. ECE creates $m$ bins between $0$ and $1$ and assigns predictions to bins based on their probability estimates. For each bin, we take the accuracy of predictions in that bin $e_{i}$ and subtract from it the average of the probability estimates in that bin $o_{i}$. This is weighted by the proportion of predictions in that bin. Each bin's score is the summed to provide the ECE of the model's predictions. A lower ECE is more desirable, indicating that model predictions are close to true frequencies.
+
+$$
+\text{ECE} = \sum_{i=1}^{K} P(i) \cdot |o_{i} - e_{i}|
+$$
+
+## Model Interpretability
+
+### Permutation Importance
+
+Permutation importance is a method for estimating feature importance by randomly permuting one or more features and evaluating the change in model performance metrics. Features which, when permuted, result in a larger drop in model performance can be inferred to be more important in model estimations. Care should be taken with multicolinearity, as permutations will not entirely disconnect their relationship with others model features since those relationships can continue to exist via their colinear counterparts. 
+
+Permutation importance will thus be used in this proposed project to highlight which features or set of features are most determinative of the VAEP values assigned to actions. The potential prescence of multicolinarity could be address via hierarchical clustering 
+
+### Partial Dependence Plots (PDPs)
+
+Partial dependence plots (PDPs) [@friedmanGreedyFunctionApproximation2001] are used to visualise the relationship between some set of features (usually just $1$ or $2$) and the predictions made by a machine learning model, holding other features constant. In this case, we can use PDP plots to explore our interpretable feature set, that is the baseline and manually-engineered features, as opposed to the spatial embeddings whose dimensions are not directly interpretable.
+
+### $k$-Means Clustering
+
+We can also explore the spatial embeddings via $k$-means clustering, similarly to how DeepCluster applies $k$-means to image embeddings generated by a convolutional neural network (CNN) [@caronDeepClusteringUnsupervised2019]. $k$-means is an unsupervised clustering algorithm which finds optimal locations for some $k$ centroids within the $d$-dimensional feature space. The algorithm initialises $k$ centroids within the feature space, assigns data points to their nearest centroid and then recalculates the location of each centroid to the position which minimises the distance to its assigned data points. The data points are then reassigned and the algorithm iterates until convergence. A number of distance measures may be used, with euclidean distance being most common.
+
+$$
+\text{dist}(x_{i},x_{n})=\sqrt{\sum_{d=1}^{D}(x_{\displaystyle i_{d}}-x_{\displaystyle n_{d}})^{2}}
+$$ {#eq-euclidean}
+
+The hyperparameter $k$ can be chosen by considering the marginal reduction in *inertia* as *k* increases. A suitable *k* can be chosen at the point where this marginal reduction becomes negligible (this is known as the *elbow method*):
+
+$$
+\text{Inertia} = \sum_{j=1}^{K}\sum_{x_{i} \in C_{j}} || x_{i} - \mu_{j} ||^{2}
+$$ {#eq-inertia}
+
+An additional method is the use of an average *silhouette score* [@rousseeuwSilhouettesGraphicalAid1987]. For each data instance $i$, we can determine its average distance to others instances in the same cluster (cohesion $a(i)$) and its average distance to instances in the next nearest cluster (separation $b(i)$). Taking the differences between the separation and cohesion and dividing by the maximum of the two, we get the data instance's silhouette score. An average can then be taken across all data points and this average score can be compared across different values for $k$, where $1$ indicates good overall clustering and $-1$ poor:
+
+$$
+\text{SC} = \frac{1}{N}\sum_{i=1}^{N}\frac{b(i) - a(i)}{\max \{a(i),b(i)\}}
+$$ {#eq-silhouette-score}
+
+The benefit of using $k$-means clustering with these spatial embeddings is that underlying relationships represented by these embeddings can be explored by comparing the properties of clusters. For instance, player position heatmaps for each cluster could be plotted to potentially reveal notable team shapes, or if certain clusters tend to involve certain action types over others.  
+
+### Uniform Manifold Approximation and Projection (UMAP)
+
+In order to interpret the spatial embeddings, uniform manifold approximation and projection (UMAP) [@mcinnesUMAPUniformManifold2020] can be used as a dimensionality reduction technique to represent embeddings in a $2$ or $3$ dimensional space, which can then be visualised. The color of data points within a UMAP can then be determined by properties such as the VAEP value, scoring/conceding probability or $k$-means clusters.
 
 # Project Planning
 
 ## Estimated Timeline
 
- - A Gantt Chart
+This proposed project will aim to adhere to the following estimated timeline, displayed  via a Gantt chart. Given that the data being used in the proposed project has already been collected, this timeline will omit data collection and initial preprocessing. This data collection process will be described in full in the write up. Furthermore, as of the time of producing this research proposal, as date for the oral examination has not been provided and as such time has not yet been allocated for preparation for this exam.
 
 ## Prerequisite Resources
 
- - Python Version: 3.12.10
-     - Statsbombpy, Socceraction, mplsoccer, Statsmodels, Scikit-Learn, PyTorch
- - Positron, Quarto, Typst
- - My hardware (CPU, GPU, RAM)
+The following table lists the resources this proposed project plans to use in exploring its research objectives.
+
+```{python}
+#| echo: False
+#| tbl-cap: "Project Resources"
+#| tbl-cap-location: bottom
+project_resources_df.style.hide(axis="index")
+```
 
 # Conclusion
 
+Soccer has seen a huge growth in the use of data science techniques over the last couple of decades. This growth has largely been driven by the development of numerous useful metrics used to represent the value of actions by players, such as Valuing Action by Estimating Probabilties (VAEP). Metrics such as expected goals (xG), expected threat (xT) and expected possession value (EPV) have each successfully incorporated spatial context (the locations of players on the pitch during an action) into action valuation, improving model performance and greatly expanding the wealth of insights which these metrics generate. VAEP, however, has not traditionally incorporated such information. This proposed project therefore aims to develop a means for representing spatial context via manually engineered features, alongside embedding representations via set transformers, to then evaluate the impact the addition of spatial context has on VAEP model performance and to interpret how spatial context alters the behaviour of this metric.
