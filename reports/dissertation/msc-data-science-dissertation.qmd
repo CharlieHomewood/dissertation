@@ -307,7 +307,7 @@ Cross-entropy loss was introduced as a loss function in @sec-loss-function-cross
 
 ### Expected Calibration Error (ECE)
 
-Expected calibration error (ECE) [@naeiniObtainingWellCalibrated2015] is a performance metric used to evaluate the ability of a classification model to make accurate predictions. ECE creates $m$ bins between $0$ and $1$ and assigns predictions to bins based on their probability estimates. For each bin, we take the accuracy of predictions in that bin $e_{i}$ and subtract from it the average of the probability estimates in that bin $o_{i}$. This is weighted by the proportion of predictions in that bin. Each bin's score is the summed to provide the ECE of the model's predictions. A lower ECE is more desirable, indicating that model predictions are close to true frequencies.
+Expected calibration error (ECE) [@naeiniObtainingWellCalibrated2015] is a performance metric used to evaluate the ability of a classification model to make accurate predictions. ECE creates $m$ bins between $0$ and $1$ and assigns predictions to bins based on their probability estimates. For each bin, we take the accuracy of predictions in that bin $o_{i}$ and subtract from it the average of the probability estimates in that bin $e_{i}$. This is weighted by the proportion of predictions in that bin. Each bin's score is the summed to provide the ECE of the model's predictions. A lower ECE is more desirable, indicating that model predictions are close to true frequencies.
 
 $$
 \text{ECE} = \sum_{i=1}^{K} P(i) \cdot |o_{i} - e_{i}|

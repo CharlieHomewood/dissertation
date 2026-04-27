@@ -316,7 +316,7 @@
         "\n",
         "### Expected Calibration Error (ECE)\n",
         "\n",
-        "Expected calibration error (ECE) [@naeiniObtainingWellCalibrated2015] is a performance metric used to evaluate the ability of a classification model to make accurate predictions. ECE creates $m$ bins between $0$ and $1$ and assigns predictions to bins based on their probability estimates. For each bin, we take the accuracy of predictions in that bin $e_{i}$ and subtract from it the average of the probability estimates in that bin $o_{i}$. This is weighted by the proportion of predictions in that bin. Each bin's score is the summed to provide the ECE of the model's predictions. A lower ECE is more desirable, indicating that model predictions are close to true frequencies.\n",
+        "Expected calibration error (ECE) [@naeiniObtainingWellCalibrated2015] is a performance metric used to evaluate the ability of a classification model to make accurate predictions. ECE creates $m$ bins between $0$ and $1$ and assigns predictions to bins based on their probability estimates. For each bin, we take the accuracy of predictions in that bin $o_{i}$ and subtract from it the average of the probability estimates in that bin $e_{i}$. This is weighted by the proportion of predictions in that bin. Each bin's score is the summed to provide the ECE of the model's predictions. A lower ECE is more desirable, indicating that model predictions are close to true frequencies.\n",
         "\n",
         "$$\n",
         "\\text{ECE} = \\sum_{i=1}^{K} P(i) \\cdot |o_{i} - e_{i}|\n",
@@ -370,7 +370,7 @@
         "\n",
         "The following table lists the resources this proposed project plans to use in exploring its research objectives.\n"
       ],
-      "id": "57114333"
+      "id": "d6559238"
     },
     {
       "cell_type": "code",
@@ -381,7 +381,7 @@
         "#| tbl-cap-location: bottom\n",
         "project_resources_df.style.hide(axis=\"index\")"
       ],
-      "id": "19b8f3f3",
+      "id": "cf24d3e1",
       "execution_count": null,
       "outputs": []
     },
@@ -393,7 +393,7 @@
         "\n",
         "Soccer has seen a huge growth in the use of data science techniques over the last couple of decades. This growth has largely been driven by the development of numerous useful metrics used to represent the value of actions by players, such as Valuing Action by Estimating Probabilties (VAEP). Metrics such as expected goals (xG), expected threat (xT) and expected possession value (EPV) have each successfully incorporated spatial context (the locations of players on the pitch during an action) into action valuation, improving model performance and greatly expanding the wealth of insights which these metrics generate. VAEP, however, has not traditionally incorporated such information. This proposed project therefore aims to develop a means for representing spatial context via manually engineered features, alongside embedding representations via set transformers, to then evaluate the impact the addition of spatial context has on VAEP model performance and to interpret how spatial context alters the behaviour of this metric."
       ],
-      "id": "404dd6e8"
+      "id": "56bc07b5"
     }
   ],
   "metadata": {
