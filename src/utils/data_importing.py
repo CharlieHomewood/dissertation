@@ -62,7 +62,7 @@ def process_match(match_id: int) -> Optional[Tuple[pd.DataFrame, pd.DataFrame, O
         sa_events = SBL.events(game_id=match_id)[[
             "game_id", "event_id", "period_id",
             "type_id", "type_name", "play_pattern_id",
-            "play_pattern_name", "position_id"
+            "play_pattern_name", "position_id", "extra"
         ]]
         three_sixty = load_360(match_id)
 

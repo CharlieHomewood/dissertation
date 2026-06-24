@@ -11,8 +11,9 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-META_DIR = "data/metadata"
-os.makedirs(META_DIR, exist_ok=True)
+dirs = ["data/metadata", "data/events"]
+for dir in dirs:
+    os.makedirs(dir, exist_ok=True)
 
 session = requests.Session()
 SBL = StatsBombLoader()
@@ -49,7 +50,7 @@ if __name__ == "__main__":
         number_of_matches += len(match_ids)
 
         match_info_df = matches_df.merge(
-            games_df[["game_id", "season_id", "competition_id", "home_team_id", "away_team_id"]],
+            games_df,
             how="left",
             left_on="match_id",
             right_on="game_id"
@@ -99,7 +100,7 @@ if __name__ == "__main__":
                 right_on="event_uuid"
             )
 
-        out_path = f"data/events_{ids['competition_id']}_{ids['season_id']}.parquet"
+        out_path = f"data/events/events_{ids['competition_id']}_{ids['season_id']}.parquet"
 
         number_of_events += df.shape[0]
 
@@ -107,10 +108,10 @@ if __name__ == "__main__":
 
         print(f"Saved to '~/{out_path}'")
 
-    with open(f"{META_DIR}/number_of_matches.pkl", "wb") as f:
+    with open("data/metadata/number_of_matches.pkl", "wb") as f:
         pickle.dump(number_of_matches, f)
     
-    with open(f"{META_DIR}/number_of_events.pkl", "wb") as f:
+    with open("data/metadata/number_of_events.pkl", "wb") as f:
         pickle.dump(number_of_events, f)
 
-    print(f"FInished! Downloaded and processed {number_of_matches} matches.")
+    print(f"Finished! Downloaded and processed {number_of_events} events from {number_of_matches} matches across {len(competitions_dict.keys())} competitions.")
