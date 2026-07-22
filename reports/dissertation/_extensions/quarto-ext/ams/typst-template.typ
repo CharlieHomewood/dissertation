@@ -1,4 +1,3 @@
-
 #let script-size = 7.97224pt
 #let footnote-size = 8.50012pt
 #let small-size = 9.24994pt
@@ -70,6 +69,7 @@
         align(center, upper(title)),
         if calc.odd(i) { align(right)[#i] }
       )
+      v(10pt)
     }),
 
     // On the first page, the footer should contain the page number.
@@ -85,40 +85,60 @@
   // Configure headings.
   set heading(numbering: "1.")
   show heading: it => {
-    // Create the heading numbering.
-    let number = if it.numbering != none {
-      counter(heading).display(it.numbering)
-      h(7pt, weak: true)
-    }
+  // Create the heading numbering.
+  let number = if it.numbering != none {
+    counter(heading).display(it.numbering)
+    h(7pt, weak: true)
+  }
 
-    // Level 1 headings are centered and smallcaps.
-    // The other ones are run-in.
-    set text(size: normal-size, weight: 700)
-    if it.level == 1 {
-      set align(center)
-      set text(size: large-size)
+  set text(size: normal-size, weight: 700)
+
+  if it.level == 1 {
+    set align(center)
+    set text(size: large-size)
+
+    block(
+      above: 20pt,
+      below: 12pt,
       smallcaps[
-        #v(15pt)
         #number
         #it.body
-        #v(6pt)
       ]
-      counter(figure.where(kind: "theorem")).update(0)
-    } else {
-      set par(first-line-indent: 0em)
-      set align(left)
-      v(22pt, weak: true)
-      number
-      let styled = if it.level == 2 { strong } else { emph }
-      styled(it.body)
-      h(7pt, weak: true)
-    }
+    )
+
+    counter(figure.where(kind: "theorem")).update(0)
+
+  } else {
+    set par(first-line-indent: 0em)
+    set align(left)
+
+    block(
+      above: 20pt,
+      below: 14pt,
+      {
+        number
+        let styled = if it.level == 2 { strong } else { emph }
+        styled(it.body)
+      }
+    )
   }
+}
 
   // Configure lists and links.
   set list(indent: 12pt, body-indent: 5pt)
   set enum(indent: 12pt, body-indent: 5pt)
-  show link: set text(font: "New Computer Modern Mono")
+  show list: it => {
+    it
+    par(text(size: 0pt, ""))
+  }
+  show enum: it => {
+    it
+    par(text(size: 0pt, ""))
+  }
+  show link: it => {
+    set text(font: "New Computer Modern Mono", fill: blue.darken(20%))
+    underline(it)
+  }
 
   // Configure equations.
   show math.equation: set block(below: 20pt, above: 20pt)
@@ -127,6 +147,12 @@
   // Configure citation and bibliography styles.
   set bibliography(style: "apa", title: "References")
 
+  set table(
+    stroke: none,
+    inset: (x: 6pt, y: 4pt),
+    align: left,
+  )
+  
   show figure: it => {
     show: pad.with(x: 23pt)
     set align(center)
@@ -138,17 +164,12 @@
 
     // Display the figure's caption.
     if it.has("caption") {
-      // Gap defaults to 17pt.
       v(if it.has("gap") { it.gap } else { 17pt }, weak: true)
-      smallcaps[Figure]
-      if it.numbering != none {
-        [ #counter(figure).display(it.numbering)]
-      }
-      [. ]
       it.caption
     }
 
     v(15pt, weak: true)
+
   }
 
   // Theorems.
@@ -165,47 +186,50 @@
     emph(it.body)
   })
 
-  v(0.5fr)
-  // Display the title and authors.
-  align(center, {
-    text(size: 16pt, weight: 700, title)
-    v(25pt, weak: true)
-    text(size: 10pt, author-string)
-    v(25pt, weak: true)
-  })
-
-  // Configure paragraph properties.
-  set par(first-line-indent: 1.2em, justify: true, leading: 0.58em)
-  show par: set block(spacing: 1.5em)
-
-  v(30pt)
-  // Display the abstract
-  if abstract != none {
-
-    align(center)[
-      #text(size: large-size, weight: 700, "Abstract")  // centered bold header
-    ]
-
-    v(20pt, weak: true)
-    set text(small-size)
-    show: pad.with(x: 35pt)
-    abstract
-  }
-
-  v(30pt)
-  {
-    set par(first-line-indent: 0em, justify: false)
-    show par: set block(spacing: 0.5em)
-
-    align(center)[
-      #block(width: 70%)[
-        #outline(title: "Table of Contents", depth: 3, indent: 2em)
-      ]
-    ]
-  }
-
   v(1fr)
-  pagebreak()
+
+align(center)[
+  #text(size: 16pt, weight: 700, title)
+
+  #v(25pt)
+  #text(size: 10pt, author-string)
+
+  #if abstract != none [
+    #v(40pt)
+
+    #text(size: large-size, weight: 700)[Abstract]
+
+    #v(20pt)
+    #set text(size: small-size)
+
+    #block(width: 75%)[
+      #abstract
+    ]
+  ]
+]
+
+v(1fr)
+
+pagebreak()
+
+// -----------------------------------------------------------------------------
+// Table of contents
+// -----------------------------------------------------------------------------
+
+{
+  set par(first-line-indent: 0em, justify: false)
+  show par: set block(spacing: 0.5em)
+
+  align(center)[
+    #outline(
+      title: "Table of Contents",
+      depth: 3,
+      indent: 2em,
+    )
+  ]
+}
+
+pagebreak()
 
   // Display the article's contents.
   body
@@ -223,15 +247,20 @@
 }
 
 // The ASM template also provides a theorem function.
-#let theorem(body, numbered: true) = figure(
-  body,
-  kind: "theorem",
-  supplement: [Theorem],
-  numbering: if numbered { "1" },
+#let theorem(body, numbered: true) = block(
+  above: 20pt, below: 20pt,
+  {
+    figure(
+      body,
+      kind: "theorem",
+      supplement: [Theorem],
+      numbering: if numbered { "1" }
+    )
+  }
 )
 
 // And a function for a proof.
-#let proof(body) = block(spacing: 11.5pt, {
+#let proof(body) = block(spacing: 11.5pt, above: 20pt, below: 20pt, {
   emph[Proof.]
   [ ] + body
   h(1fr)
