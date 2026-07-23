@@ -213,7 +213,7 @@ The multi-head attention mechanism of standard transformers is adapted in set tr
 
 Important for the purposes of this present project, set transformers also enable permutation invariance by dropping position encodings of input set elements and pool outputs via pooling with multihead attention (PMA). PMA works similarly to multihead attention but instead pools the representations of each element of the set into $k$ vectors, each providing a representation of the whole set. $k$ is typically set to $1$, provding a single representation of the set, but $k>1$ is permitted. The queries $Q$ are a fixed set of learned *seed vectors* $S$. Reordering the set will thus result in the same pooled representation via PMA, enabling permutation invariance.
 
-As such, the encoder component of the set transformer is used to generate spatial embeddings. However, regarding the decoder, this component is simply used during the training process. The decoder takes the encoder's generated spatial embedding as an input and attempts to reconstruct the original freeze-frame array. The deviation between the original array and the decoder's array provides a means to assess how well the encoder's generated spatial embedding represents the freeze-frame array, and thereby constitutes a measure of the set transformer's performance: its loss function. The exact loss function used in this present project is discussed in @sec-set-transformer-loss-function. 
+As such, the encoder component of the set transformer is used to generate spatial embeddings. However, regarding the decoder, this component is simply used during the training process. The decoder takes the encoder's generated spatial embedding as an input and attempts to reconstruct the original freeze-frame array. The deviation between the original array and the decoder's array provides a means to assess how well the encoder's generated spatial embedding represents the freeze-frame array, and thereby constitutes a measure of the set transformer's performance: its loss function. The exact loss function used in this present project is discussed in @sec-set-transformer-loss-function. Given that the role of the decoder is to provide a reconstruction objective for evaluating the quality of the encoder's learned spatial embedding, it does not necessarily require the same self-attention mechanisms used by the encoder. Such a design choice to use a lightweight, non-attention based decoder has been applied in the SegFormer architecture [@xieSegFormerSimpleEfficient2021] for regular transformers, and successfully applied to set transformers by @ashcroftModellingComplexVector2023 in their work on generating illustrations by training a generative set transformer model to represent them as "stroke clouds" (a type of set comprised of Bézier curves) whilst using a non-attention based diffusion decoder. In this present project, the encoder is responsible for modelling relationships between players and producing a fixed-dimensional representation of the freeze frame, while the decoder acts as a reconstruction head that maps this representation back to the original player freeze-frame. With the decoder playing an instrumental role in the development of spatial embeddings, it is arguably sufficient for the decoder to have a relatively simplistic architecture, provided the loss function used preserves permutation-invariance.
 
 Applications of set transformers in soccer analytics have typically fallen in the domain of trajectory prediction. @kimBallTrajectoryInference2023 apply set transformers in the context of soccer analytics. @kimBallTrajectoryInference2023 use set transformers to encode representations of player trajectories from tracking data snapshots to infer ball trajectories. @capelleraFootbotsTransformerBasedArchitecture2024 similarly developed *FootBots* using set transformer architecture to improve player and ball motion prediction over traditional models. Whilst this domain deviates from this project, these studies do highlight the appropriateness of using set transformers to encode player positions.
 
@@ -304,11 +304,21 @@ $$ {#eq-affine-transformation}
 
 The dimensionality $d_{\text{hidden}}$ of this learned projection layer is left as a tunable hyperparameter during optimisation, with $d_{\text{hidden}} \in \{32,64,128,256\}$ being the candidates used. This transformation provides the set transformer with a higher-dimensional latent representation of each element, enabling it to learn richer relationships between players within each freeze-frame than would be possible from the raw feature representation alone.
 
-This projection layer $H \in \mathbb{R}^{n \times d_{\text{hidden}}}$ is then inputted to the set transformer encoder, whereby the self-attention mechanism learns the weight matrices $W_{Q}, W_{K}, W_{V}$ which minimise loss. 
+This projection layer $H \in \mathbb{R}^{n \times d_{\text{hidden}}}$ is then inputted to the set transformer encoder, whereby the self-attention mechanism learns the weight matrices $W_{Q}, W_{K}, W_{V}$ which minimise loss (see @sec-set-transformer-loss-function). 
 
 #### Set Transformer Loss Function {#sec-set-transformer-loss-function}
 
-Given that freeze-frames constitute permutation-invariant sets, the loss function used must also respect this characteristic. Each player in each freeze-frame consists of two broad components: a pair of $x, y$ co-ordinates for their location on the pitch and a set of attributes about that player (teammate, goalkeeper, actor). For the location component, we 
+Given that the freeze-frames - particularly the player co-ordinates - constitute permutation-invariant sets, the loss function used must also respect this characteristic. Each player in each freeze-frame consists of two broad components: a pair of $x, y$ co-ordinates for their location on the pitch and a set of attributes about that player (teammate, goalkeeper, actor). 
+
+For the location component, we require a loss function which preserves the permutation-invariant property of our freeze-frames, which are unordered sets. Chamfer distance fulfills such requirements. Chamfer distance conducts a nearest neighbour search between points in one set with points in the other set. Each point is assigned its nearest neighbour in the other set and the distance is taken between them. Each of these distances are summed and averaged across the number of elements from the first set. 
+
+$$
+d_{\text{CH}}(S, \hat{S}) = \frac{1}{|S|}\sum_{x\in S}\min_{\hat{x} \in \hat{S}}||x-\hat{x}||_{2} + \frac{1}{|\hat{S}|}\sum_{\hat{x} \in \hat{S}}\min_{x \in S}||\hat{x} - x||_{2}
+$$ {#eq-chamfer-distance}
+
+$$
+L_{\text{BCE}}=-\frac{1}{N}\sum_{i=1}^{N}\left(y_{i}\log\sigma(x_{i})+(1-y_{i})\log(1-\sigma(x_{i}))\right)
+$$ {#eq-bce-loss}
 
 $$
 \mathcal{L} = \lambda_{xy} \mathcal{L}_{\text{Chamfer}} + \lambda_{f}\mathcal{L}_{\text{BCE}}
@@ -325,19 +335,11 @@ $$ {#eq-set-transformer-loss-function}
 
 
 
+## Set Transformer Hyperparameter Tuning
 
 
 
-
-
-
-
-
-
-
-
-
-## Model Training
+## Classifier Training
 
 @decroosActionsSpeakLouder2019 use $4$ different supervised classification techniques to estimate scoring and conceding probabilities, enabling VAEP calculations. This project will replicate the implementation of these same $4$ techniques as closely as possible, albeit they do not provide comprehensive details on the Python version used, librarie versions, or all model hyperparameters.
 
