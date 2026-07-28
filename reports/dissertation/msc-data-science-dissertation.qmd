@@ -139,7 +139,7 @@ The authors compare these VAEP player ratings against traditional metrics like g
 
 One potential limitation of the VAEP model is that it lacks a representation of wider spatial context from the positions of teammates and opponents during actions [@desa-freireEventDataBased2025], due to its use of event data only. Every action taken by a player exists within a spatial context which determines the options available to a player, influencing their decision making. The use of spatial context in VAEP models is also understudied, despite its addition having been successfully applied to a number of alternative action value metrics. 
 
-## Applications of Spatial Context to Action Value Metrics
+## Related Work: Applications of Spatial Context to Action Value Metrics
 
 ### Expected Goals (xG) {#sec-xg}
 
@@ -310,34 +310,111 @@ This projection layer $H \in \mathbb{R}^{n \times d_{\text{hidden}}}$ is then in
 
 Given that the freeze-frames - particularly the player co-ordinates - constitute permutation-invariant sets, the loss function used must also respect this characteristic. Each player in each freeze-frame consists of two broad components: a pair of $x, y$ co-ordinates for their location on the pitch and a set of attributes about that player (teammate, goalkeeper, actor). 
 
-For the location component, we require a loss function which preserves the permutation-invariant property of our freeze-frames, which are unordered sets. Chamfer distance fulfills such requirements. Chamfer distance conducts a nearest neighbour search between points in one set with points in the other set. Each point is assigned its nearest neighbour in the other set and the distance is taken between them. Each of these distances are summed and averaged across the number of elements from the first set. 
+For the location component, we require a loss function which preserves the permutation-invariant property of our freeze-frames, which are unordered sets. Chamfer distance fulfills such requirements. 
+
+Chamfer distance conducts a nearest neighbour search between points in one set with points in the other set. Each point is assigned its nearest neighbour in the other set and the distance is taken between them. Each of these distances are summed and averaged across the number of elements from the first set. Minimisation of Chamfer distance is achieved by successfully reconstructing the original set. In this scenario, this would correspond to the decoder successfully reconstructing the co-ordinate locations of each player within the original freeze-frame. This nearest neighbour search can be conducted with quadratic time complexity, as we must compute every pairwise distance between original and reconstructed set elements.
 
 $$
-d_{\text{CH}}(S, \hat{S}) = \frac{1}{|S|}\sum_{x\in S}\min_{\hat{x} \in \hat{S}}||x-\hat{x}||_{2} + \frac{1}{|\hat{S}|}\sum_{\hat{x} \in \hat{S}}\min_{x \in S}||\hat{x} - x||_{2}
+\mathcal{L}_{\text{Chamfer}} = d_{\text{CH}}(S, \hat{S}) = \frac{1}{|S|}\sum_{x\in S}\min_{\hat{x} \in \hat{S}}||x-\hat{x}||^{2}_{2} + \frac{1}{|\hat{S}|}\sum_{\hat{x} \in \hat{S}}\min_{x \in S}||\hat{x} - x||^{2}_{2}
 $$ {#eq-chamfer-distance}
 
+Alternative distance measures may be used in place of Chamfer distance, such as the Hungarian method [@kuhnHungarianMethodAssignment1955], which can be used to find an optimal solution to the assignment problem: finding the permutation of the reconstructed set which, when paired one-to-one with the original set, minimises loss. Chamfer loss does not enforce such a one-to-one correspondence, as elements from the original set may share the same nearest neighbour from the reconstructed set (and vice versa).
+
+Rather than searching through each permutation naively, which would result in a factorial search time complexity, the Hungarian method constructs a cost matrix which records the pairwise distances of each point in the original set with each point in the reconstructed set. 
+
+To find the optimal permutation, the minimum value of each row is subtracted from its elements. Then, the minimum value of each column is subtracted from each of its elements. If each row in the resulting matrix has an element equal to $0$ where the column ($j$-index) of that element is not reused in the $0$-valued elements of any other row, then an optimal assignment can be derived. 
+
+If this is not the case, we find the number of horizontal and vertical lines needed to cover each $0$ element (a *covered value*) in the matrix. If less than $n$ lines were used, where $n$ is the number of rows and columns in the cost matrix, then we subtract the minimum positive-valued row value from each row element which is *uncovered* (i.e. non-zero) and add the value to elements which are covered. We then reassess whether $n$ lines are needed to cover the $0$ values and repeat until this condition is met. The resulting matrix elements with values equal to $0$ correspond to the optimal one-to-one pairing of elements in the original set with elements in the reconstructed set. This approach to the Hungarian method has a cubic time complexity, resulting in a substantial improvement over the naive method.
+
+Despite the Hungarian method having the advantage of preserving a one-to-one correspondence between original and reconstructed set elements, Chamfer loss was deemed preferable for this project as:
+
+ - Reconstructed freeze-frames are used as a training signal to produce encoder-generated embeddings which capture meaningful spatial context information. The decoder-generated freeze-frames are not needed for any downstream tasks (e.g. synthetically generating realistic football player event freeze-frames).
+ - Players in freeze-frames are not uniquely identifiable, so enforcing one-to-one correspondence does not necessarily provide additional semantic information.
+ - Chamfer loss operates with $O(n^{2})$, whereas Hungarian matching is $O(n^{3})$. For a training set size $n \in [10^{5}, 10^{6}]$, such as in this project, and given that the constant factor of Chamfer distance is comparatively computationally cheaper than that of the Hungarian method, the reduction of time complexity by a factor of $n$ makes using Chamfer loss more economical.
+
+Future work with developing spatial embeddings from freeze-frames may wish to empirically contrast alternative reconstruction loss functions whilst considering the trade-off in terms of computation time.
+
+The second component of this set transformer's loss function relates to the teammate, actor and goalkeeper flags which each player in each freeze-frame as, as seen in @fig-player-json. Given that the teammate, actor and goalkeeper statuses of each player are binary categorical variables, we can model their realisations as being sampled from Bernoulli distributions. The decoder can therefore predict a probability of the flag being equal to $1$ and we can use this prediction to evaluate performance. 
+
 $$
-L_{\text{BCE}}=-\frac{1}{N}\sum_{i=1}^{N}\left(y_{i}\log\sigma(x_{i})+(1-y_{i})\log(1-\sigma(x_{i}))\right)
+\mathcal{L}_{\text{BCE}}=\frac{1}{N}\sum_{i=1}^{N}\left(-y_{i}\log \hat{p_{i}}-(1-y_{i})\log(1-\hat{p_{i}})\right)
 $$ {#eq-bce-loss}
+
+
+Binary cross entropy (BCE) loss provides a measure of how close predicted probabilties are to the true binary values. When the true value is $1$, the second term evaluates to $0$ and thus the loss is determined by the first term $-y_{i}\log \hat{p_{i}}$, which evaluates to $0$ when the predicted probability is $1$, and approaches $\infty$ when the limit of the predicted probability tends to $0$. When the true value is $0$, the first term cancels and the second term similarly provides a measure of loss which is $0$ when the predicted probability is $0$, and approaches $\infty$ when the loss approaches $1$. This loss is calculated for each data instance individually and its average is taken to provide an overall measure of BCE loss.
+
+To combine these two measures into a single loss function for the set transformer, we can use a weighted sum, where the weights $\lambda_{xy}$ and $\lambda_{f}$ are tunable hyperparameters. @eq-set-transformer-loss-function therefore constitutes the loss function used for this present project's set transformer.
 
 $$
 \mathcal{L} = \lambda_{xy} \mathcal{L}_{\text{Chamfer}} + \lambda_{f}\mathcal{L}_{\text{BCE}}
 $$ {#eq-set-transformer-loss-function}
 
-
-
-
-
-
-
-
-
-
-
-
 ## Set Transformer Hyperparameter Tuning
 
+Rather than training a single set transformer with arbitrary hyperparameters, it would be preferable to use an algorithm to choose values for the model's hyperparameters as to minimise its loss function, whilst avoiding overfitting. This process is known as hyperparameter optimisation or tuning.
 
+One standard approach to hyperparameter tuning is grid search. With grid search, a discrete set of candidate values are provided for each model hyperparameter and each possible combination of these candidates is trialled. Grid search, whilst exhaustive of the search space, is an inefficient means of hyperparameter tuning, relative to alternative methods. With $h$ hyperparameters in the model, and $v$ candidate values across all hyperparameters, the search space with grid search is equivalent to $v^{h}$, which constitutes an exponential time complexity $O(v^{h})$. Grid search's efficacy is further compounded by the fact that much time is spent exploring hyperparameter value combinations which yield poor performance, relative to the optimal combination available. Moreover, the search space provided must be discrete, which potentially misses more optimal hyperparameter values that may be found in a continuous search space. Whilst potentially useful for small models where there exists well-established prior expectations for appropriate hyperparameter values, alternative methods may be preferred.
+
+An alternative approach can be found in random search. Random search draws $n$ random samples of hyperparameter value combinations from the set of values provided and trials them. Rather than an exhaustive search of a discrete set of hyperparameter value combinations, random search enables sampling over both discrete sets of values and also continuous sampling distributions for hyperparameter values. Compared to grid search, this helps to reduce the time complexity of the search space to linear time, with search time simply being a linear function of the number of desired trials - $O(n)$ - whilst also allowing for more optimal values to be chosen via the use of hyperparameter value sampling distributions. @bergstraRandomSearchHyperparameter2012 argue that since hyperparameters for a given model often do not contribute evenly to the performance of the model (e.g. the learning rate may be more important that the dropout rate), grid search wastes time exploring hyperparameter value combinations which will not yield significant gains in performance. Instead, random search randomly samples values for all hyperparameters at each trial, meaning that the most important hyperparameters are always being tested with new unique values within a fixed computational budget. Grid search instead wastes computational budget on varying less important hyperparameters whilst keeping important hyperparameters constant, since it must exhaust all possible combinations. Random search therefore can explore the search space of important hyperparameters more efficiently, providing opportunity for random search to outperform grid search. 
+
+Despite this advantage over grid search, a limitation common to both grid search and random search is the fact that neither approach uses information gained from previous trials to improve the estimations made by future trials. Sampling efficiency could be drastically improved if an algorithm were to consider previous trials in its sampling of new candidate values. 
+
+One family of optimiser approaches which we can use to enhance hyperparameter sampling efficiency are Bayesian optimisers. In general, a Bayesian optimiser constructs a surrogate model to predict model performance $y$ given a set of hyperparameter values $x$. This surrogate model $p(y|x)$ produces its estimates based on some prior history of trials. After each trial, the predictions from this surrogate model are used to inform an acquisition function, which explores the search space to find regions which balance currently acquired knowledge on which hyperparameters lead to improved performance over less explored regions where uncertainty is higher and thus potential for further optimisation may exist. This acquisition function then samples hyperparameter values based on this tradeoff, which in turn updates the surrogate model and thus the process continues for some $n$ number of trials. A Bayesian optimisier can therefore incorporate prior evidence acquired from previous trials to inform decisions on which hyperparameter values ought to be trialled next, enabling convergence towards a local optimium. 
+
+The present project will use a type of Bayesian optimiser known as a Tree-Structured Parzen Estimator (TPE), which is outlined in the next subsection (@sec-tpe). This TPE is implemented via the Optuna Python library [@akibaOptunaNextgenerationHyperparameter2019].
+
+### Tree-Structured Parzen Estimatior (TPE) {#sec-tpe}
+
+A TPE is a type of Bayesian optimiser which deviates from the general approach in a few key ways. Firstly, a TPE models the probability distribution of hyperparameter values, given model performance $p(x|y)$ - an inversion of the standard Bayesian optimiser approach. Thus, a TPE seeks to update the probability distributions of each hyperparameter in line with the prior evidence accumulated about which values lead to improved performance. $p(x|y)$ is defined by two derived densities: $l(x)$ and $g(x)$. Given a set of trials with candidate hyperparameters $x$ and observed loss values $y$, a parameter $\gamma$ is defined so as to dervied the $\gamma^{th}$ quantile of $y$ referred to as $y^{*}$ such that $p(y < y^{*}) = \gamma$. The exact value of $\gamma$ may be a fixed value (i.e. always use $\gamma = 0.15$), or as in the case with Optuna's default implementation, an adaptive gamma function:
+
+$$
+\gamma(n) = \min(\lceil0.1 n\rceil, 25)
+$$ {#eq-adaptive-gamma-function}
+
+This threshold $y^{*}$ is used to define two probability density estimates for the set of hyperparameters. $l(x)$ constitutes probabilities density estimates for hyperparameter values where the observed loss is less than $y^{*}$, and $g(x)$ constitutes the probability density estimates for hyperparameters values where the observed loss is greater than or equal to $y^{*}$. As such, using the definition provided by @bergstraAlgorithmsHyperParameterOptimization2011 on p.4:
+
+$$
+p(x|y) = \begin{cases}
+l(x) &\quad \text{if }y < y^{*} \\
+g(x) &\quad \text{if }y \ge y^{*} 
+\end{cases}
+$$ {#eq-tpe-model}
+
+To then choose an optimal set of hyperparameters for the next trial, TPE aims to sample hyperparameter values which maximise Expected Improvement (EI). EI therefore constitutes the acquisition function of the TPE algorithm. EI is given as the expectation of the improvement given the surrogate model's distribution, which we can define using Bayes' rule:
+
+$$
+EI(x) = \int_{-\infty}^{y^{*}}(y^{*}-y)p(y|x)\,dy = \int_{-\infty}^{y^{*}}(y^{*}-y)\frac{p(x|y)p(y)}{p(x)}\,dy
+$$ {#eq-expected-improvement}
+
+Rather than computing this expectation directly, @bergstraAlgorithmsHyperParameterOptimization2011 instead point out since any hyperparameter combination must come from either $l(x)$ or $g(x)$, we can express $p(x)$ as:
+
+$$
+p(x) = \gamma l(x) + (1-\gamma) g(x)
+$$ {#eq-prob-of-x}
+
+We can see from @eq-expected-improvement that $EI(x) \propto \frac{1}{p(x)}$. Therefore, by substitution and then rearrangement:
+
+$$
+EI(x) \propto \frac{1}{\gamma l(x) + (1-\gamma) g(x)} \propto \left(\gamma + (1-\gamma) \frac{g(x)}{l(x)}\right)^{-1}
+$$ {#eq-expected-improvement-propotional-to}
+
+We can therefore see that $EI(x)$ is maximised when $\frac{g(x)}{l(x)}$ is smallest, or conversely when $\frac{l(x)}{g(x)}$ is maximised. This latter ratio is used by the acquisition function. The function samples $m$ sets of hyperparameter values from $l(x)$ and computes $\frac{l(x)}{g(x)}$. The sample with the largest value for $\frac{l(x)}{g(x)}$ is then chosen as the next candidate hyperparameter value set. This then updates the surrogate model and the process continues for $n$ trials. In order to provide densities $l(x)$ and $g(x)$ to the acquisition function, an initial startup period of trials is required. By default, Optuna's TPE sampler uses $10$ startup trials before performing the TPE algorithm for some $n$ number of trials.
+
+To actually estimate $l(x)$ and $g(x)$, TPE uses kernel density estimation (KDE - a.k.a. the Parzen-Rossenblatt window method) [@rosenblattRemarksNonparametricEstimates1956; @parzenEstimationProbabilityDensity1962]. KDE is a non-parametric method of estimating a probability density function given some set of $n$ observations $\{x_{1},\dots,x_{n}\}$. In the case of TPE, these observations are the candidate hyperparameters from previous trials
+
+### Hyperband Pruning
+
+Each set of candidate hyperparameter values is trained across some number of epochs as specified during training. However, it is possible to evaluate trials more efficiently than to simply let each of then run their full course of epochs. In the context of this project, the number of epochs per trial is the resource budget. Hyperband pruning [@liHyperbandNovelBanditBased2018] is a means to efficiently allocate this resource budget across trials as to avoid wasting training epochs on trials which are clearly performing poorly. 
+
+Firstly, hyperband tuning involves three key parameters: $R_{\min}$, $R_{\max}$ and $\eta$. $R_{\min}$ is the minimum resource to be used per trial. As mentioned, for this project this is the minimum number of epochs each trial will train with. $R_{\max}$ is the resource budget we are choosing to employ (i.e. the maximum number of epoch per trial). $\eta$ is known as the reduction factor. 
+
+Hyperband tuning uses the the successive halving algorithm to assess the performance of a trial during its progress. Whilst the standard successive halving algorithm involves running trials in parallel, the implementation in Optuna involves running trial in succession and thus an alternative method is employed. For each trial, we evaluate performance after the first rung is completed (i.e. $R_{\min}$) and compare it to the performance of previous trials at that same rung. If performance is competitive with previous trials, we continue to the next rung, which is the current rung multiplied by the reduction factor $\eta$. We continue until either performance fails to compete, in which case the trial is terminated (i.e. *pruned*), or we reach the resource budget $R_{\max}$. 
+
+What separates hyperband tuning from standard successive halving is that different sets of rungs are employed for some trials (known as brackets). Some brackets may involve starting with a smaller amount of resource, corresponding to more exploratory behaviour, whilst others may adopt a greater amount of resource initially, corresponding to a more exploitative approach. Trials are only compared to previous trials of the same bracket. This approach allows hyperband tuning to benefit from a balance of both exploratory or exploitative approaches, whereas standard successive halving must commit to one or the other. The number of brackets $s_{\max}$ used during tuning is determined as follows:
+
+$$
+s_{\max} = \left\lfloor\log_{\eta}\left(\frac{R_{\max}}{R_{\min}}\right)\right\rfloor
+$$ {#eq-hyperband-pruning-brackets}
 
 ## Classifier Training
 
@@ -353,7 +430,7 @@ $$
 P(Y = 1 | X) = \frac{1}{1+e^{\displaystyle-(\mathbf{w}^{\top}\mathbf{x} + b)}}
 $$ {#eq-log-reg-model}
 
-@decroosActionsSpeakLouder2019 report the use of L2 Regularisation and Limited-memory BFGS, which is replicated in this project.
+@decroosActionsSpeakLouder2019 report the use of L2 Regularisation and a Limited-memory BFGS, which is replicated in this project.
 
 L2 regularisation introduces an additional penalty term to the loss function (in this case cross-entropy loss, see @sec-loss-function-cross-entropy-loss). This penality term is some multiple $\lambda \in \mathbb{R}^{+}$ of the sum of squared weights:
 
@@ -531,6 +608,66 @@ In order to interpret the spatial embeddings, uniform manifold approximation and
 
 ## Set Transformer Training
 
+The set transformer used to generate spatial embeddings was trained on $652{,}041$ atomic-spadl actions, with a validation set of $95{,}933$ used for hyperparameter tuning. A final test set of $191{,}180$ instances was used to test the best performing model following hyperparameter tuning. This best performing model was trained for $20$ epochs, whereas models with candidate hyperparameter during tuning were trained for $10$ epochs, unless pruned by the hyperband pruner. 
+
+A total of $30$ trials were used for hyperparameter tuning. @tbl-hyperparameter-candidate-values shows the set of candidate values which the TPE sampler drew from. As indicated by the `Data Type` column, most hyperparameters were passed as categorical sets, whilst those which were continuous allowed the TPE sampler to sample from any value within the specified range, inclusive. The learning rate and weight decay were additionally specified to be sampled log-uniformly.
+
+```{python}
+#| echo: false
+#| label: tbl-hyperparameter-candidate-values
+#| tbl-cap: "Hyperparameter Candidate Values"
+#| tbl-cap-location: bottom
+#| tbl-pos: H
+
+df = pd.DataFrame({
+    "Hyperparameter": [
+        "Batch Size",
+        "Dropout",
+        "Embedding Dimensions",
+        "Flag Weight",
+        "Hidden Dimensions",
+        "Learning Rate",
+        "Number of Heads",
+        "Number of Hidden Layers",
+        "Weight Decay",
+        "XY Weight"
+    ],
+    "Candidate Values": [
+        [256, 512, 1024],
+        [0.0, 0.1, 0.2, 0.3],
+        [16, 32, 64],
+        (0.05, 0.5),
+        [32, 64, 128, 256],
+        (1e-4, 5e-3),
+        [2, 4, 8],
+        [1, 2, 3, 4],
+        (1e-6, 1e-3),
+        (0.5, 2.0)
+    ],
+    "Data Type": [
+        "Categorical",
+        "Categorical",
+        "Categorical",
+        "Continuous",
+        "Categorical",
+        "Continuous (Logarithmic)",
+        "Categorical",
+        "Categorical",
+        "Continuous (Logarithmic)",
+        "Continuous",
+    ]
+})
+
+(
+    df.style
+    .hide(axis="index")
+)
+```
+
+As seen in @tbl-optuna-results, trial $22$ performed best in terms of minimising the weighted Chamfer + BCE loss function.
+
+{{< pagebreak >}}
+
 ```{python} 
 #| echo: false
 #| label: tbl-optuna-results
@@ -548,18 +685,18 @@ def edit_cells(data):
         index=data.index,
         columns=data.columns,
     )
-    styles.iat[11, 0] = "background-color: gold;"
-    styles.iat[11, 1] = "background-color: gold;"
-    styles.iat[11, 2] = "background-color: gold;"
-    styles.iat[11, 3] = "background-color: gold;"
-    styles.iat[11, 4] = "background-color: gold;"
-    styles.iat[11, 5] = "background-color: gold;"
-    styles.iat[11, 6] = "background-color: gold;"
-    styles.iat[11, 7] = "background-color: gold;"
-    styles.iat[11, 8] = "background-color: gold;"
-    styles.iat[11, 9] = "background-color: gold;"
-    styles.iat[11, 10] = "background-color: gold;"
-    styles.iat[11, 11] = "background-color: gold;"
+    styles.iat[22, 0] = "background-color: gold;"
+    styles.iat[22, 1] = "background-color: gold;"
+    styles.iat[22, 2] = "background-color: gold;"
+    styles.iat[22, 3] = "background-color: gold;"
+    styles.iat[22, 4] = "background-color: gold;"
+    styles.iat[22, 5] = "background-color: gold;"
+    styles.iat[22, 6] = "background-color: gold;"
+    styles.iat[22, 7] = "background-color: gold;"
+    styles.iat[22, 8] = "background-color: gold;"
+    styles.iat[22, 9] = "background-color: gold;"
+    styles.iat[22, 10] = "background-color: gold;"
+    styles.iat[22, 11] = "background-color: gold;"
     return styles
 
 (
@@ -576,6 +713,8 @@ def edit_cells(data):
     })
 )
 ```
+
+{{< pagebreak >}}
 
 ![Set Transformer Training Loss Curve](figures/freeze_frame_point_autoencoder_loss_curve.png){#fig-set-transformer-training-loss-curve}
 
@@ -927,26 +1066,35 @@ def edit_cells(data):
 
 {{< pagebreak >}}
 
+### VAEP EDA
 
-
-
-
-
-
-
-
-
-
+![VAEP per Action vs Actions per 90 Minutes Played](figures/vaep_per_action_actions_per_90.png){#fig-vaep-per-action-actions-per-90}
 
 ## Model Interpretation
 
 ### Permutation Importance
 
+![Grouped Permutation Importance](figures/grouped_permutation_importance.png){#fig-grouped-permutation-importance}
+
 ![Concede Classifier Permutation Importance: Baseline Features](figures/concedes_classifier_permutation_importance_baseline.png){#fig-concede-permutation-importance-baseline}
 
 ![Score Classifier Permutation Importance: Baseline Features](figures/scores_classifier_permutation_importance_baseline.png){#fig-score-permutation-importance-baseline}
 
+![Concede Classifier Permutation Importance: Manually Engineered Spatial Features](figures/concedes_classifier_permutation_importance_manual_spatial.png){}
+
+![Score Classifier Permutation Importance: Manually Engineered Spatial Features](figures/scores_classifier_permutation_importance_manual_spatial.png){}
+
+![Concede Classifier Permutation Importance: Spatial Embedding Dimensions](figures/concedes_classifier_permutation_importance_embeddings.png){}
+
+![Score Classifier Permutation Importance: Spatial Embedding Dimensions](figures/scores_classifier_permutation_importance_embeddings.png){}
+
 ### Partial Dependence Plots
+
+![PDP of Most Important Baseline Features for each Model](figures/pdp_most_important_baseline_features.png){#fig-pdp-most-important-baseline-features}
+
+![PDP of Distance To Goal](figures/pdp_dist_to_goal_a0.png){#fig-pdp-dist-to-goal-a0}
+
+![PDP of Goalscore Difference](figures/pdp_goalscore_diff.png){#fig-pdp-goalscore-diff}
 
 ### K-means Clustering: Spatial Embeddings
 
@@ -990,6 +1138,8 @@ def edit_cells(data):
 ```
 
 ### UMAP
+
+![UMAP Coloured by K-means Cluster with Varying UMAP Hyperparameter Values](figures/umap_hyperparameter_range_clusters.png){#fig-umap-hyperparameter-range-clusters}
 
 # Discussion
 
