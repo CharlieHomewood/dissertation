@@ -12,6 +12,7 @@ warnings.filterwarnings(
 )
 
 def events_parquet_to_actions_df(events_parquet_file: str) -> pd.DataFrame:
+    
     print(f"Reading in {events_parquet_file}")
     df = pd.read_parquet(events_parquet_file)
     print(f"Finished reading in {events_parquet_file}")
@@ -27,13 +28,14 @@ def events_parquet_to_actions_df(events_parquet_file: str) -> pd.DataFrame:
     actions_dfs_list = []
 
     for match_id in tqdm(match_ids, desc="Processing Matches"):
+
         match_events = df[df["match_id"] == match_id]
 
-        home_team = match_events["home_team"].iloc[0]
+        home_team_id = match_events["home_team_id"].iloc[0]
 
         actions = spadl.statsbomb.convert_to_actions(
             match_events,
-            home_team,
+            home_team_id,
             xy_fidelity_version=2,
             shot_fidelity_version=2,
         )
@@ -47,6 +49,8 @@ def events_parquet_to_actions_df(events_parquet_file: str) -> pd.DataFrame:
             how="left",
             validate="many_to_one",
         )
+
+        atomic_actions_with_freeze_frame["home_team_id"] = home_team_id
 
         labels = pd.concat([
             atomic_vaep_labels.scores(atomic_actions_with_freeze_frame),

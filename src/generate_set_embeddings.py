@@ -13,9 +13,10 @@ from utils.spatial_embeddings import (
 )
 
 
-MODEL_PATH = "models/freeze_frame_point_autoencoder.pt"
-INPUT_DIR = "data/actions"
-BATCH_SIZE = 1024
+model_path = "models/freeze_frame_point_autoencoder.pt"
+input_dir = "data/actions"
+max_players = 22
+batch_size= 512
 
 
 class FreezeFrameEmbeddingDataset(Dataset):
@@ -26,17 +27,20 @@ class FreezeFrameEmbeddingDataset(Dataset):
     to the correct dataframe row.
     """
 
-    def __init__(self, df: pd.DataFrame):
-        if "freeze_frame" not in df.columns:
-            raise ValueError("DataFrame must contain a freeze_frame column.")
-
-        self.freeze_frames = df["freeze_frame"].tolist()
+    def __init__(self, df):
+        self.df = df.reset_index(drop=True)
 
     def __len__(self):
-        return len(self.freeze_frames)
+        return len(self.df)
 
     def __getitem__(self, idx):
-        freeze_frame_array = freeze_frame_to_array(self.freeze_frames[idx])
+        row = self.df.iloc[idx]
+
+        freeze_frame_array = freeze_frame_to_array(
+            row["freeze_frame"],
+            flip=(row["team_id"] != row["home_team_id"]),
+        )
+
         return idx, freeze_frame_array
 
 
@@ -80,18 +84,21 @@ def load_trained_model(model_path: str, device: str):
         map_location=device,
     )
 
+    params = checkpoint["best_params"]
+
     model = FreezeFramePointAutoencoder(
-        embedding_dim=checkpoint["embedding_dim"],
-        max_players=checkpoint["max_players"],
-        hidden_dim=checkpoint["hidden_dim"],
-        num_heads=checkpoint["num_heads"],
-        num_layers=checkpoint["num_layers"],
+        embedding_dim=params["embedding_dim"],
+        max_players=max_players,
+        hidden_dim=params["hidden_dim"],
+        num_heads=params["num_heads"],
+        num_layers=params["num_layers"],
+        dropout=params["dropout"],
     ).to(device)
 
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
 
-    return model, checkpoint["embedding_dim"]
+    return model, params["embedding_dim"]
 
 
 def remove_existing_embedding_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -112,7 +119,7 @@ def append_embeddings(
     model: FreezeFramePointAutoencoder,
     embedding_dim: int,
     device: str,
-    batch_size: int = BATCH_SIZE,
+    batch_size: int = batch_size,
 ) -> pd.DataFrame:
     dataset = FreezeFrameEmbeddingDataset(df)
 
@@ -140,14 +147,11 @@ def append_embeddings(
             loader,
             desc="Generating embeddings",
         ):
-            # Rows with at least one real player
             valid_rows = (~padding_mask).any(dim=1)
 
             batch_indices = indices.numpy()
             has_freeze_frame[batch_indices[valid_rows.numpy()]] = 1
 
-            # If the whole batch has empty freeze_frames, skip it.
-            # Those rows keep zero embeddings.
             if not valid_rows.any():
                 continue
 
@@ -198,13 +202,13 @@ def main():
     print(f"Using device: {device}")
 
     model, embedding_dim = load_trained_model(
-        MODEL_PATH,
+        model_path,
         device,
     )
 
     action_paths = [
-        Path(INPUT_DIR) / file
-        for file in os.listdir(INPUT_DIR)
+        Path(input_dir) / file
+        for file in os.listdir(input_dir)
         if file.endswith(".parquet")
     ]
 
@@ -222,10 +226,9 @@ def main():
             model=model,
             embedding_dim=embedding_dim,
             device=device,
-            batch_size=BATCH_SIZE,
+            batch_size=batch_size,
         )
 
-        # Overwrite the original parquet file
         df_with_embeddings.to_parquet(
             action_path,
             index=False,

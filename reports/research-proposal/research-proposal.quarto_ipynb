@@ -17,7 +17,7 @@
         "csl: apa.csl\n",
         "---"
       ],
-      "id": "bf045099"
+      "id": "b8e70982"
     },
     {
       "cell_type": "code",
@@ -42,7 +42,7 @@
         "\n",
         "project_resources_df = pd.read_csv(\"../../data/metadata/project_resources.csv\")"
       ],
-      "id": "89c6f9e6",
+      "id": "672909f9",
       "execution_count": null,
       "outputs": []
     },
@@ -236,7 +236,7 @@
         "\n",
         "The following table lists the resources this project plans to use in exploring its research objectives.\n"
       ],
-      "id": "f5be609c"
+      "id": "a591f709"
     },
     {
       "cell_type": "code",
@@ -247,7 +247,7 @@
         "#| tbl-cap-location: bottom\n",
         "project_resources_df.style.hide(axis=\"index\")"
       ],
-      "id": "c1a2d576",
+      "id": "b20f1735",
       "execution_count": null,
       "outputs": []
     },
@@ -259,7 +259,7 @@
         "\n",
         "Soccer has seen huge growth in data science over the last couple of decades, largely driven by metrics like expected goals (xG), expected threat (xT) and expected possession value (EPV), each of which successfully incorporate spatial context. Valuing Action by Estimating Probabilities (VAEP) traditionally has not. This project therefore aims to develop representations of spatial context via manually engineered features and embedding representations using set transformers to then evaluate the impact of adding spatial context on VAEP model performance and behaviour."
       ],
-      "id": "0fb3309d"
+      "id": "d0e9ae82"
     }
   ],
   "metadata": {

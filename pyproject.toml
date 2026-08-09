@@ -4,13 +4,20 @@ version = "0.1.0"
 requires-python = ">= 3.12.10"
 dependencies = [
     "catboost>=1.2.10",
+    "duckdb>=1.5.5",
     "fastparquet>=2026.5.0",
+    "great-tables>=0.22.0",
+    "ipython>=9.14.1",
     "matplotlib>=3.11.0",
+    "mlstatkit>=0.1.91",
     "mplsoccer>=1.6.1",
     "scikit-learn>=1.9.0",
     "socceraction==1.5.3",
     "statsbombpy>=1.19.0",
+    "statsmodels>=0.14.6",
+    "tabulate>=0.10.0",
     "tqdm>=4.68.3",
+    "umap-learn>=0.5.12",
     "xgboost>=3.3.0",
 ]
 

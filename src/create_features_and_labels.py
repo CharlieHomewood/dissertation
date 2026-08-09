@@ -45,7 +45,7 @@ spatial_feature_cols = [
 
 embedding_feature_cols = [
     f"spatial_embedding_{i:02d}"
-    for i in range(32)
+    for i in range(64)
 ]
 
 
@@ -59,7 +59,7 @@ for actions_parquet_file in os.listdir("data/actions"):
         actions_parquet_file=actions_path,
         xfns=xfns, 
         yfns=yfns,
-        nb_prev_actions=3,
+        nb_prev_actions=10,
         spatial_feature_cols=spatial_feature_cols + embedding_feature_cols,
     )
 

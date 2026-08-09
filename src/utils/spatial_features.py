@@ -2,14 +2,41 @@ import numpy as np
 import math
 from scipy.spatial import ConvexHull, QhullError
 
-def get_actor_location(freeze_frame: list[dict]) -> list[float] | None:
+SB_LENGTH = 120
+SB_WIDTH = 80
+
+SPADL_LENGTH = 105
+SPADL_WIDTH = 68
+
+
+def transform_location(location, flip=False):
+    x, y = location
+
+    # StatsBomb -> SPADL
+    x = x / SB_LENGTH * SPADL_LENGTH
+    y = (SB_WIDTH - y) / SB_WIDTH * SPADL_WIDTH
+
+    # Make away team attack left->right
+    if flip:
+        x = SPADL_LENGTH - x
+        y = SPADL_WIDTH - y
+
+    return [x, y]
+
+def get_actor_location(freeze_frame, flip=False):
+
+    if not isinstance(freeze_frame, list):
+        return None
 
     for player in freeze_frame:
-        if player.get("actor") is True:
+        if player.get("actor"):
+
             location = player.get("location")
 
             if isinstance(location, list) and len(location) == 2:
-                return location
+                return transform_location(location, flip)
+
+    return None
 
 def get_distance_between_actor_and_player(actor_location: list[float, float], player_location: list[float, float]) -> float:
 
@@ -19,12 +46,18 @@ def get_distance_between_actor_and_player(actor_location: list[float, float], pl
     return distance
 
 
-def actors_euclidean_distance_to_each_player(freeze_frame: list[dict]) -> dict[str, list[float]] | None:
+def actors_euclidean_distance_to_each_player(
+    freeze_frame: list[dict],
+    flip: bool = False,
+) -> dict[str, list[float]] | None:
 
     if not isinstance(freeze_frame, list):
         return None
 
-    actor_location = get_actor_location(freeze_frame)
+    actor_location = get_actor_location(
+        freeze_frame,
+        flip,
+    )
 
     if actor_location is None:
         return None
@@ -41,6 +74,11 @@ def actors_euclidean_distance_to_each_player(freeze_frame: list[dict]) -> dict[s
 
         if not isinstance(player_location, list) or len(player_location) != 2:
             continue
+
+        player_location = transform_location(
+            player_location,
+            flip,
+        )
 
         distance = get_distance_between_actor_and_player(
             actor_location,
@@ -59,12 +97,22 @@ def actors_euclidean_distance_to_each_player(freeze_frame: list[dict]) -> dict[s
 
 
 
-def number_of_players_within_radius_of_actor(freeze_frame: list[dict], radius: float) -> dict[str, int] | None:
+def number_of_players_within_radius_of_actor(
+    freeze_frame: list[dict],
+    radius: float,
+    flip: bool = False,
+) -> dict[str, int] | None:
+
+    if not isinstance(freeze_frame, list):
+        return None
 
     number_of_opponents_within_radius_of_actor = 0
     number_of_teammates_within_radius_of_actor = 0
 
-    actor_location = get_actor_location(freeze_frame)
+    actor_location = get_actor_location(
+        freeze_frame,
+        flip,
+    )
 
     if actor_location is None:
         return None
@@ -78,6 +126,11 @@ def number_of_players_within_radius_of_actor(freeze_frame: list[dict], radius: f
 
         if not isinstance(player_location, list) or len(player_location) != 2:
             continue
+
+        player_location = transform_location(
+            player_location,
+            flip,
+        )
 
         distance = get_distance_between_actor_and_player(
             actor_location,
@@ -99,7 +152,10 @@ def number_of_players_within_radius_of_actor(freeze_frame: list[dict], radius: f
 
 
 
-def player_convex_hull_area(freeze_frame: list[dict]) -> dict[str, float] | None:
+def player_convex_hull_area(
+    freeze_frame: list[dict],
+    flip: bool = False,
+) -> dict[str, float] | None:
 
     opponent_locations = []
     teammate_locations = []
@@ -113,6 +169,11 @@ def player_convex_hull_area(freeze_frame: list[dict]) -> dict[str, float] | None
 
         if not isinstance(player_location, list) or len(player_location) != 2:
             continue
+
+        player_location = transform_location(
+            player_location,
+            flip,
+        )
 
         if player.get("teammate") is True:
             teammate_locations.append(player_location)

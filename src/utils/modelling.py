@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.metrics import check_scoring
 from tqdm import tqdm
 
+
 def grouped_permutation_importance(
     estimator,
     X,
@@ -15,15 +16,22 @@ def grouped_permutation_importance(
     rng = np.random.RandomState(random_state)
     scorer = check_scoring(estimator, scoring=scoring)
 
-    baseline_score = scorer(estimator, X, y)
+    columns = list(X.columns)
+    col_to_idx = {col: i for i, col in enumerate(columns)}
+
+    values = X.to_numpy(dtype=np.float64, copy=True)
+    n_rows = values.shape[0]
+
+    baseline_score = scorer(estimator, values, y)
 
     results = {}
 
     total_steps = 0
     for group_name, cols in feature_groups.items():
-        if group_mode[group_name] == "independent":
+        mode = group_mode[group_name]
+        if mode == "independent":
             total_steps += len(cols) * n_repeats
-        elif group_mode[group_name] == "block":
+        elif mode == "block":
             total_steps += n_repeats
         else:
             raise ValueError(
@@ -34,55 +42,51 @@ def grouped_permutation_importance(
     with tqdm(total=total_steps, desc="Permutation importance") as pbar:
 
         for group_name, cols in feature_groups.items():
-
             mode = group_mode[group_name]
 
             if mode == "independent":
-
                 for col in cols:
+                    idx = col_to_idx[col]
+                    original_col = values[:, idx].copy()
+                    drops = np.empty(n_repeats)
 
-                    drops = []
+                    for i in range(n_repeats):
+                        perm = rng.permutation(n_rows)
+                        values[:, idx] = original_col[perm]
 
-                    for _ in range(n_repeats):
-
-                        X_perm = X.copy()
-
-                        perm = rng.permutation(len(X_perm))
-                        X_perm[col] = X_perm[col].iloc[perm].values
-
-                        score = scorer(estimator, X_perm, y)
-
-                        drops.append(baseline_score - score)
+                        score = scorer(estimator, values, y)
+                        drops[i] = baseline_score - score
 
                         pbar.update(1)
 
+                    values[:, idx] = original_col
+
                     results[col] = {
-                        "mean": np.mean(drops),
-                        "std": np.std(drops, ddof=1),
-                        "raw": np.asarray(drops),
+                        "mean": drops.mean(),
+                        "std": drops.std(ddof=1),
+                        "raw": drops,
                     }
 
             elif mode == "block":
+                idxs = [col_to_idx[c] for c in cols]
+                original_block = values[:, idxs].copy()
+                drops = np.empty(n_repeats)
 
-                drops = []
+                for i in range(n_repeats):
+                    perm = rng.permutation(n_rows)
+                    values[:, idxs] = original_block[perm]
 
-                for _ in range(n_repeats):
-
-                    X_perm = X.copy()
-
-                    perm = rng.permutation(len(X_perm))
-                    X_perm.loc[:, cols] = X_perm.loc[:, cols].iloc[perm].values
-
-                    score = scorer(estimator, X_perm, y)
-
-                    drops.append(baseline_score - score)
+                    score = scorer(estimator, values, y)
+                    drops[i] = baseline_score - score
 
                     pbar.update(1)
 
+                values[:, idxs] = original_block
+
                 results[group_name] = {
-                    "mean": np.mean(drops),
-                    "std": np.std(drops, ddof=1),
-                    "raw": np.asarray(drops),
+                    "mean": drops.mean(),
+                    "std": drops.std(ddof=1),
+                    "raw": drops,
                 }
 
     return results

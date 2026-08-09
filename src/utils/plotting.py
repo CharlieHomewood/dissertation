@@ -2,16 +2,6 @@ import pandas as pd
 from mplsoccer import Pitch
 
 def plot_event(df: pd.DataFrame, event_id: str):
-    """
-    A function to plot a specific match event using an mplsoccer Pitch object.
-
-    Args:
-        - events_df (pd.DataFrame): A pandas dataframe of statsbomb match events with 360 data.
-        - event_id (str): An ID string for a specific match event.
-
-    Returns:
-        p.draw(): An mplsoccer Pitch plot of the specified match event.
-    """
     p = Pitch()
     fig, ax = p.draw()
     pitch_data = df[df["id"] == event_id]

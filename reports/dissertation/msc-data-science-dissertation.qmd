@@ -78,6 +78,8 @@ scores_random_forest_comparison_significance_test_results_df.columns = scores_ra
 scores_xgboost_comparison_significance_test_results_df = pd.read_parquet("../../results/scores_xgboost_comparison_significance_test_results.parquet")
 scores_xgboost_comparison_significance_test_results_df.columns = scores_xgboost_comparison_significance_test_results_df.columns.str.replace("_", " ")
 
+top10_vaep_player_ratings_male_df = pd.read_parquet("../../results/top10_vaep_player_ratings_male.parquet")
+top10_vaep_player_ratings_female_df = pd.read_parquet("../../results/top10_vaep_player_ratings_female.parquet")
 ```
 
 # Introduction
@@ -259,6 +261,8 @@ With the derived atomic-SPADL actions, spatial context features are subsequently
 
 ### Manually-Engineered Spatial Context Features
 
+\
+
 ::: {#fig-player-json}
 ```json
 {
@@ -270,6 +274,8 @@ With the derived atomic-SPADL actions, spatial context features are subsequently
 ```
 StatsBomb *three-sixty* freeze-frame JSON schema
 :::
+
+\
 
 @fig-player-json outlines the JSON schema for StatsBomb *three-sixty* freeze-frames. Each freeze-frame JSON object has an associated `event_uuid` to enable joins with events data, and a `visible_area` polygon which indicates the viewing area from the broadcast camera at the moment the action took place. We can see from the available data, that it is possible to construct the opposition proximity metric from @cefisNewXGModel2025 and a partial convex hull area or LR as explored by @amichayCharacterizingSpatialStructures2025. Given that the sample in this project applies to on-ball actions, not just shots, the opposition proximity metric from @cefisNewXGModel2025 is adapted to consider a $\ang{360}$ radius around the player, rather than a frontal semi-circle. 
 
@@ -361,14 +367,58 @@ Despite this advantage over grid search, a limitation common to both grid search
 
 One family of optimiser approaches which we can use to enhance hyperparameter sampling efficiency are Bayesian optimisers. In general, a Bayesian optimiser constructs a surrogate model to predict model performance $y$ given a set of hyperparameter values $x$. This surrogate model $p(y|x)$ produces its estimates based on some prior history of trials. After each trial, the predictions from this surrogate model are used to inform an acquisition function, which explores the search space to find regions which balance currently acquired knowledge on which hyperparameters lead to improved performance over less explored regions where uncertainty is higher and thus potential for further optimisation may exist. This acquisition function then samples hyperparameter values based on this tradeoff, which in turn updates the surrogate model and thus the process continues for some $n$ number of trials. A Bayesian optimisier can therefore incorporate prior evidence acquired from previous trials to inform decisions on which hyperparameter values ought to be trialled next, enabling convergence towards a local optimium. 
 
-The present project will use a type of Bayesian optimiser known as a Tree-Structured Parzen Estimator (TPE), which is outlined in the next subsection (@sec-tpe). This TPE is implemented via the Optuna Python library [@akibaOptunaNextgenerationHyperparameter2019].
+The present project will use a type of Bayesian optimiser known as a Tree-Structured Parzen Estimator (TPE), which is outlined in the next subsection (@sec-tpe). This TPE is implemented via the Optuna Python library [@akibaOptunaNextgenerationHyperparameter2019]. @tbl-hyperparameter-description provides a brief outline of the hyperparameters to be used for the set transformer in this project.
+
+\
+
+```{python}
+#| echo: false
+#| label: tbl-hyperparameter-description
+#| tbl-cap: "Set Transformer Hyperparameter Descriptions"
+#| tbl-cap-location: bottom
+#| tbl-pos: H
+
+df = pd.DataFrame({
+    "Hyperparameter": [
+        "Batch Size",
+        "Dropout",
+        "Embedding Dimensions",
+        "Flag Weight",
+        "Hidden Dimensions",
+        "Learning Rate",
+        "Number of Heads",
+        "Number of Hidden Layers",
+        "Weight Decay",
+        "XY Weight"
+    ],
+    "Description": [
+        "The number of data instances processed before model parameters are updated.",
+        "A random proportion of network activations set to zero during training.",
+        "The number of dimensions in the output layer of the set transformer encoder.",
+        "A weighting applied to the Chamfer distance component of the set transformer loss function.",
+        "The number of dimensions of each hidden layer.",
+        "A weighting applied to the derivative of the loss function with respect to model parameters to control the magnitude by which parameters are updated during training.",
+        "The number of self-attention mechanisms which operate in parallel in each hidden layer.",
+        "The number of hidden layers used within the set transformer encoder.",
+        "An L2 regularisation applied to model weights.",
+        "A weighting applied to the binary cross-entropy component the set transformer loss function.",
+    ]
+})
+
+(
+    df.style
+    .hide(axis="index")
+)
+```
+
+\
 
 ### Tree-Structured Parzen Estimatior (TPE) {#sec-tpe}
 
 A TPE is a type of Bayesian optimiser which deviates from the general approach in a few key ways. Firstly, a TPE models the probability distribution of hyperparameter values, given model performance $p(x|y)$ - an inversion of the standard Bayesian optimiser approach. Thus, a TPE seeks to update the probability distributions of each hyperparameter in line with the prior evidence accumulated about which values lead to improved performance. $p(x|y)$ is defined by two derived densities: $l(x)$ and $g(x)$. Given a set of trials with candidate hyperparameters $x$ and observed loss values $y$, a parameter $\gamma$ is defined so as to dervied the $\gamma^{th}$ quantile of $y$ referred to as $y^{*}$ such that $p(y < y^{*}) = \gamma$. The exact value of $\gamma$ may be a fixed value (i.e. always use $\gamma = 0.15$), or as in the case with Optuna's default implementation, an adaptive gamma function:
 
 $$
-\gamma(n) = \min(\lceil0.1 n\rceil, 25)
+\gamma(n) = \min\left(\lceil0.1 n\rceil, 25\right)
 $$ {#eq-adaptive-gamma-function}
 
 This threshold $y^{*}$ is used to define two probability density estimates for the set of hyperparameters. $l(x)$ constitutes probabilities density estimates for hyperparameter values where the observed loss is less than $y^{*}$, and $g(x)$ constitutes the probability density estimates for hyperparameters values where the observed loss is greater than or equal to $y^{*}$. As such, using the definition provided by @bergstraAlgorithmsHyperParameterOptimization2011 on p.4:
@@ -395,16 +445,16 @@ $$ {#eq-prob-of-x}
 We can see from @eq-expected-improvement that $EI(x) \propto \frac{1}{p(x)}$. Therefore, by substitution and then rearrangement:
 
 $$
-EI(x) \propto \frac{1}{\gamma l(x) + (1-\gamma) g(x)} \propto \left(\gamma + (1-\gamma) \frac{g(x)}{l(x)}\right)^{-1}
+EI(x) \propto \frac{1}{\gamma l(x) + (1-\gamma) g(x)} = \left(\gamma + (1-\gamma) \frac{g(x)}{l(x)}\right)^{-1}
 $$ {#eq-expected-improvement-propotional-to}
 
 We can therefore see that $EI(x)$ is maximised when $\frac{g(x)}{l(x)}$ is smallest, or conversely when $\frac{l(x)}{g(x)}$ is maximised. This latter ratio is used by the acquisition function. The function samples $m$ sets of hyperparameter values from $l(x)$ and computes $\frac{l(x)}{g(x)}$. The sample with the largest value for $\frac{l(x)}{g(x)}$ is then chosen as the next candidate hyperparameter value set. This then updates the surrogate model and the process continues for $n$ trials. In order to provide densities $l(x)$ and $g(x)$ to the acquisition function, an initial startup period of trials is required. By default, Optuna's TPE sampler uses $10$ startup trials before performing the TPE algorithm for some $n$ number of trials.
 
-To actually estimate $l(x)$ and $g(x)$, TPE uses kernel density estimation (KDE - a.k.a. the Parzen-Rossenblatt window method) [@rosenblattRemarksNonparametricEstimates1956; @parzenEstimationProbabilityDensity1962]. KDE is a non-parametric method of estimating a probability density function given some set of $n$ observations $\{x_{1},\dots,x_{n}\}$. In the case of TPE, these observations are the candidate hyperparameters from previous trials
+To actually estimate $l(x)$ and $g(x)$, TPE uses kernel density estimation (KDE - a.k.a. the Parzen-Rossenblatt window method) [@rosenblattRemarksNonparametricEstimates1956; @parzenEstimationProbabilityDensity1962]. KDE is a non-parametric method of estimating a probability density function given some set of $n$ observations $\{x_{1},\dots,x_{n}\}$. In the case of TPE, these observations are the candidate hyperparameters from previous trials.
 
 ### Hyperband Pruning
 
-Each set of candidate hyperparameter values is trained across some number of epochs as specified during training. However, it is possible to evaluate trials more efficiently than to simply let each of then run their full course of epochs. In the context of this project, the number of epochs per trial is the resource budget. Hyperband pruning [@liHyperbandNovelBanditBased2018] is a means to efficiently allocate this resource budget across trials as to avoid wasting training epochs on trials which are clearly performing poorly. 
+Each set of candidate hyperparameter values is trained across some number of epochs as specified during training. However, it is possible to evaluate trials more efficiently than to simply let each of then run their full course of epochs. In the context of this project, the number of epochs per trial is the *resource budget*. Hyperband pruning [@liHyperbandNovelBanditBased2018] is a means to efficiently allocate this resource budget across trials as to avoid wasting training epochs on trials which are clearly performing poorly. 
 
 Firstly, hyperband tuning involves three key parameters: $R_{\min}$, $R_{\max}$ and $\eta$. $R_{\min}$ is the minimum resource to be used per trial. As mentioned, for this project this is the minimum number of epochs each trial will train with. $R_{\max}$ is the resource budget we are choosing to employ (i.e. the maximum number of epoch per trial). $\eta$ is known as the reduction factor. 
 
@@ -420,7 +470,7 @@ $$ {#eq-hyperband-pruning-brackets}
 
 @decroosActionsSpeakLouder2019 use $4$ different supervised classification techniques to estimate scoring and conceding probabilities, enabling VAEP calculations. This project will replicate the implementation of these same $4$ techniques as closely as possible, albeit they do not provide comprehensive details on the Python version used, librarie versions, or all model hyperparameters.
 
-Given that VAEP requires two concurrent classifiers to be trained for scoring and conceding probability estimates, respectively, and the introduction of manually engineered spatial features and spatial embeddings will result in a total of $32$ individual classifier models being trained, enablining the construction of: baseline VAEP; baseline + manual features; baseline + embeddings; and baseline + manual features + embeddings models. This ablation design allows for the impact of adding spatial context on model performance and behaviour to be investigated.
+Given that VAEP requires two concurrent classifiers to be trained for scoring and conceding probability estimates, respectively, and the introduction of manually engineered spatial features and spatial embeddings will result in a total of $32$ individual classifier models being trained, enabling the construction of: baseline VAEP; baseline + manual features; baseline + embeddings; and baseline + manual features + embeddings models. This ablation design allows for the impact of adding spatial context on model performance and behaviour to be investigated.
 
 ### Logistic Regression
 
@@ -448,7 +498,7 @@ Classification tasks may also be performed by decision trees. We can treat a cla
 
 A random forest [@breimanRandomForests2001] is an ensemble method which aggregates results from multiple decision trees, each trained on a random subset of the training set. In a classification task, this aggregation is employed by majority voting. For each data instance, the class predictions made by each tree in the forest are counted up and the class with the most "votes" is outputted as the predicted class for that instance. By having class predictions be made via majority voting from multiple decision trees, a random forest benefits from being less prone to overfitting and more robust to outliers in the dataset. 
 
-@decroosActionsSpeakLouder2019 indicate that they used $100$ trees and $40$ parallel threads to train their random forest models. Thus this project also used $100$ trees. However, the number of parallel threads simply determines the number of concurrent processes used, which does not impact model behaviour other than via its runtime. Since my hardware is different to the authors', this hyperparameter will be chosen during training and reported in the write up.
+@decroosActionsSpeakLouder2019 indicate that they used $100$ trees and $40$ parallel threads to train their random forest models. Thus this project also used $100$ trees. However, the number of parallel threads simply determines the number of concurrent processes used, which does not impact model behaviour other than via its runtime. Since my hardware is different to the authors', this hyperparameter will be chosen during training.
 
 ### Gradient Boosting
 
@@ -498,7 +548,11 @@ This results in the *purest* possible split and thus corresponds to the most dis
 
 ### Area Under the Receiver Operating Characteristic Curve (AUC-ROC)
 
-A receiver operating characteristic curve (ROC) is produced by plotting the true-positive rate (TPR) against the false positive rate (FPR) for each probability threshold a model could use to classify a data instance into the reference class (i.e. the action results in a goal scored/conceded within $k$ events).
+A receiver operating characteristic curve (ROC) is produced by plotting the true-positive rate (TPR) against the false positive rate (FPR) for each probability threshold a model could use to classify a data instance into the reference class (i.e. the action results in a goal scored/conceded within $k$ events). The result is an estimate of the probability that, given a random pair of instances where one is labelled $1$ and the other labelled $0$, the instance labelled $1$ is assigned by the classifier a higher probability of belonging to the $1$ class than the instance labelled $0$. A higher AUC score therefore indicates strong performance by the classifier.
+
+$$
+\text{AUC} = \frac{1}{mn}\sum_{j=1}^{n}\sum_{i=1}^{m}\phi(x_{i}, y_{i})\quad \text{where } \phi(x_{i},y_{j})=\begin{cases}1 & x_{i}>y_{j} \\ 0.5 & x_{i} = y_{j} \\ 0 & x_{i} < y_{j}\end{cases}
+$$ {#eq-auc}
 
 ### Brier Score
 
@@ -532,9 +586,7 @@ $$
 
 ### Permutation Importance
 
-Permutation importance is a method for estimating feature importance by randomly permuting one or more features and evaluating the change in model performance metrics. Features which, when permuted, result in a larger drop in model performance can be inferred to be more important in model estimations. Care should be taken with multicolinearity, as permutations will not entirely disconnect their relationship with others model features since those relationships can continue to exist via their colinear counterparts. 
-
-Permutation importance will thus be used in this project to highlight which features or set of features are most determinative of the VAEP values assigned to actions. The potential prescence of multicolinarity could be address via hierarchical clustering 
+Permutation importance is a method for estimating feature importance by randomly permuting one or more features and evaluating the change in model performance metrics. Features which, when permuted, result in a larger drop in model performance can be inferred to be more important in model estimations. Care should be taken with multicolinearity, as permutations will not entirely disconnect their relationship with others model features since those relationships can continue to exist via their colinear counterparts. Permutation importance will thus be used in this project to highlight which features or set of features are most determinative of the VAEP values assigned to actions. 
 
 ### Partial Dependence Plots (PDPs)
 
@@ -586,7 +638,7 @@ $$ {#eq-calinski-harabasz}
 
 ##### Davies-Bouldin Index (DBI)
 
-Lastly, the Davies-Bouldin index (DBI) provides a simultaneous evaluation of how separated each cluster is and how compact data instances are to their assigned cluster. For each pair of clusters $i, j$, we can consider how their individual compactness ($S_{i} and S_{j}$) and their relative distances compare by taking the ratio of the sum of their compactness to the distance of their centroids.
+Lastly, the Davies-Bouldin index (DBI) provides a simultaneous evaluation of how separated each cluster is and how compact data instances are to their assigned cluster. For each pair of clusters $i, j$, we can consider how their individual compactness ($S_{i}$ and $S_{j}$) and their relative distances compare by taking the ratio of the sum of their compactness to the distance of their centroids.
 
 $$
 R_{ij}=\frac{S_{i}+S_{j}}{M_{ij}}
@@ -602,7 +654,33 @@ $$ {#eq-davies-bouldin}
 
 ### Uniform Manifold Approximation and Projection (UMAP)
 
-In order to interpret the spatial embeddings, uniform manifold approximation and projection (UMAP) [@mcinnesUMAPUniformManifold2020] can be used as a dimensionality reduction technique to represent embeddings in a $2$ or $3$ dimensional space, which can then be visualised. The color of data points within a UMAP can then be determined by properties such as the VAEP value, scoring/conceding probability or $k$-means clusters.
+In order to visualise and explore the spatial embeddings, uniform manifold approximation and projection (UMAP) [@mcinnesUMAPUniformManifold2020] can be used as a dimensionality reduction technique to represent these embeddings in a $2$ or $3$ dimensional space. The color of data points within a UMAP can then be determined by properties such as the VAEP value, scoring/conceding probability or $k$-means clusters, allowing for the observation of emergent representational structure within the spatial embeddings, should any structure arise.
+
+For each data point, UMAP locates its $k$ nearest neighbours (where $k$ is a pre-specified hyperparameter). A directed graph is constructed between each data point and its neighbours, where the weight of each directed connection is determined as follows:
+
+$$
+w(x_{i},x_{i_{j}}) = \exp\left(\frac{-\max(0,d(x_{i},x_{i_{j}})-\rho_{i})}{\sigma_{i}}\right)
+$$ {#eq-umap-weight}
+
+$d(x_{i}, x_{i_{j}})$ is the raw distance between points $i$ and $j$ (e.g. Euclidean distance). $\rho_{i}$ is the raw distance of the closest neighbour to point $i$. $\sigma_{i}$ is a scaling parameter used to control how rapidly weights decrease as a function of distance. $\sigma_{i}$ is uniquely determined for each data point $i$ such that it satisties the following equivalence:
+
+$$
+\sum_{j=1}^{k}\exp\left(\frac{-\max(0,d(x_{i},x_{i_{j}})-\rho_{i})}{\sigma_{i}}\right) = \log_{2}(k)
+$$ {#eq-umap-sigma}
+
+Here, the hyperparameter $k$ is the aforementioned number of nearest neighbours each data point is pre-specified to have. This scale parameter ensures the size of each neighbourhood is comparable between regions of varying densities.
+
+With each directed weighted graph for each data point constructed, these graphs can then be combined into a global directed weighted graph for the entire data set. To ensure symmetry between connections from points $i$ and $j$ (which is not ensured when calculating $w(x_{i}, x_{i_{j}})$), weights are updated as follows:
+
+$$
+w_{ij}=w(x_{i},x_{i_{j}}) + w(x_{j}, x_{j_{i}}) - w(x_{i},x_{i_{j}})w(x_{j}, x_{j_{i}})
+$$ {#eq-umap-weight-symmetry}
+
+Each data point is then assigned an intialised lower-dimensional spectral embedding (e.g. $2$ dimensions). To optimise these embeddings such that the derived lower-dimensional representation as closely resembles the original $n$-dimensional data set, a new global directed weighted graph of this lower-dimensional embeddings space is constructed and made to resemble the global directed weighted graph from the $n$-dimensional data set. The optimisation adjusts the locations of points in the lower-dimensional space such that they are positioned closer to points with which they share a stronger weighting in the original graph and further away from points with which they share a weaker weighting in the original graph. This optimisation is achieved via stochastic gradient descent, which minimises the following cross-entropy loss function:
+
+$$
+\mathcal{L} = \sum_{(i,j)}w_{ij}\log\left(\frac{w_{ij}}{\hat{w}_{ij}}\right) + (1-w_{ij})\log\left(\frac{1-w_{ij}}{1-\hat{w}_{ij}}\right)
+$$ {#eq-umap-loss-function}
 
 # Results
 
@@ -611,6 +689,8 @@ In order to interpret the spatial embeddings, uniform manifold approximation and
 The set transformer used to generate spatial embeddings was trained on $652{,}041$ atomic-spadl actions, with a validation set of $95{,}933$ used for hyperparameter tuning. A final test set of $191{,}180$ instances was used to test the best performing model following hyperparameter tuning. This best performing model was trained for $20$ epochs, whereas models with candidate hyperparameter during tuning were trained for $10$ epochs, unless pruned by the hyperband pruner. 
 
 A total of $30$ trials were used for hyperparameter tuning. @tbl-hyperparameter-candidate-values shows the set of candidate values which the TPE sampler drew from. As indicated by the `Data Type` column, most hyperparameters were passed as categorical sets, whilst those which were continuous allowed the TPE sampler to sample from any value within the specified range, inclusive. The learning rate and weight decay were additionally specified to be sampled log-uniformly.
+
+\
 
 ```{python}
 #| echo: false
@@ -664,9 +744,11 @@ df = pd.DataFrame({
 )
 ```
 
-As seen in @tbl-optuna-results, trial $22$ performed best in terms of minimising the weighted Chamfer + BCE loss function.
+\
 
-{{< pagebreak >}}
+As shown in @tbl-optuna-results, trial $28$ performed best in terms of minimising the weighted Chamfer + BCE loss function. The hyperparameters derived by the TPE sampler are of interest here for interpreting the embeddings which were subsequently generated by this trained set transformer.
+
+\
 
 ```{python} 
 #| echo: false
@@ -714,11 +796,23 @@ def edit_cells(data):
 )
 ```
 
-{{< pagebreak >}}
+\
 
-![Set Transformer Training Loss Curve](figures/freeze_frame_point_autoencoder_loss_curve.png){#fig-set-transformer-training-loss-curve}
+An output dimension of $64$ corresponds to the number of spatial embedding dimensions used during inference. The output dimension forces a compression of information into a fixed-dimensional representation, with additional width providing room for added complexity if appropriate, however this may also introduce the risk of losing generalisability if made too wide [@chenAutoEncodersDeepLearning2023]. Furthermore, given that these fixed-dimensional embedding representations serve as features in the downstream classification models, encouraging compression has the added benefit of contributing to dimensionality reduction and thus maintaining a parsimonious feature set.
 
-## Model Training
+@leeSetTransformerFramework2019 note that "Since the output of SAB [Set Attention Block] contains information about pairwise interactions among the elements in the input set X, we can stack multiple SABs to encode higher order interaction" (p.3). Here, an SAB is just a hidden layer of the set transformer encoder. As with other deep learning techniques then, additional hidden layers (SABs) generally correspond to the encoding of increased levels of abstract representation between set elements (players). Given that the TPE sampler appeared to find a value of $1$ for the number of hidden layers to be optimal, it would potentially suggest that latent relationships between players within freeze-frames is relatively simple and thus does not require multiple layers of abstraction to produce embedding representation which minimise loss. This seems relatively intuitive, given that freeze-frames consist of $22$ players at most. 
+
+That being said, one might suggest that this could be an artefact of the amount of training time afforded ($10$ epochs), whereby deeper representations require additional training time to update the additional layer parameters. However, @fig-hyperparameter-num-of-layers-loss-comparison shows that, after training $4$ copies of the final model using $20$ epochs on a subset of the train/val/test datasets and varying just the number of hidden layers, a hidden layer size of $1$ still achieves optimal performance, where it is appears that simply adding more hidden layers does not improve loss as might be expected under the afforementioned counterargument. 
+
+![Comparison of Training Loss Curves for Each Value for Number of Hidden Layers [1, 2, 3, 4]](figures/hyperparameter_num_of_layers_loss_comparison.png){#fig-hyperparameter-num-of-layers-loss-comparison width=80%}
+
+The hyperparameters from this trial were used to train the final set transformer model instance, which achieved a loss of $9.095$ on the held-out test set. @fig-set-transformer-training-loss-curve shows the training and validation loss curves for this final model. This plot shows fast convergence with good generalisability, given that both loss curves drop quickly and remain close together across the number of epochs.
+
+![Set Transformer Training Loss Curve](figures/freeze_frame_point_autoencoder_loss_curve.png){#fig-set-transformer-training-loss-curve width=80%}
+
+## Classifier Training {#sec-classifier-training}
+
+@tbl-concede-classifier-test-results and @tbl-score-classifier-test-results show the test results from training each of the $32$ classifier models. 
 
 ```{python} 
 #| echo: false
@@ -738,10 +832,10 @@ def edit_cells(data):
         index=data.index,
         columns=data.columns,
     )
-    styles.iat[0, 3] = "background-color: gold;"
-    styles.iat[6, 5] = "background-color: gold;"
-    styles.iat[14, 4] = "background-color: gold;"
-    styles.iat[14, 6] = "background-color: gold;"
+    styles.iat[1, 3] = "background-color: gold;"
+    styles.iat[14, 5] = "background-color: gold;"
+    styles.iat[13, 4] = "background-color: gold;"
+    styles.iat[13, 6] = "background-color: gold;"
     return styles
 
 (
@@ -751,6 +845,14 @@ def edit_cells(data):
     .format(precision=6)
 )
 ```
+
+For the concede classifiers, we can see that the XGBoost classifier with the baseline feature set (i.e. *baseline*) performed best in terms of AUC ($0.923$) and log loss ($0.007$). The XGBoost classifier with the baseline + embeddings (i.e. *embeddings*) feature set showed superior calibration over other concede-based classifiers, with the *baseline* CatBoost classifier minimising Brier score.
+
+Overall, the performance of concede classifiers showed a wider range of variation in AUC ($\text{0.657--0.923}$) across the $4$ different classifier techniques, however if the logistic regression classifiers are excluded, this range shrinks dramatically ($\text{0.891--0.923}$).
+
+Logistic regression appeared to benefit most from the introduction of spatial context features, resulting in an increase in AUC from $0.657$ to $0.791$ with the baseline + manually-engineered spatial context feature set (i.e. *manual*). The *embeddings* feature set also saw a large improvement in AUC, increasing to $0.775$. CatBoost also saw a slight improvement in AUC with the introduction of *manual* features ($0.893$ to $0.900$), however the opposite pattern was observed with the *embeddings* feature set.
+
+Curiously, the random forest and XGBoost classifier techniques appeared to show a slight decrease in performance upon the introduction of spatial context features, decreasing from $0.923$ and $0.910$ to $0.909$ and $0.891$, respectively.
 
 ```{python} 
 #| echo: false
@@ -773,7 +875,7 @@ def edit_cells(data):
     styles.iat[12, 6] = "background-color: gold;"
     styles.iat[14, 3] = "background-color: gold;"
     styles.iat[14, 4] = "background-color: gold;"
-    styles.iat[15, 5] = "background-color: gold;"
+    styles.iat[13, 5] = "background-color: gold;"
     return styles
 
 (
@@ -784,13 +886,55 @@ def edit_cells(data):
 )
 ```
 
+For the score classifiers, the XGBoost classifiers dominate performance. The XGBoost classifier using *all* features sets achieved the best AUC ($0.858$), with the *embeddings* feature set XGBoost classifier minimising the Brier score ($0.006$) and log loss ($0.031$). Furthermore, the *manual* feature set XGBoost classifier minimised calibration error most strongly ($0.0007$).
+
+Overall, the performance of score classifiers showed a wider range of variation in AUC ($\text{0.755--0.856}$) than with the concede classifiers. Additionally, this range in score classifier AUC scores is entirely subsumed by the concede classifier AUC scores, suggesting weaker predictive performance by score classifiers relative to their concede counterparts. This is in contrast to the general pattern observed by @decroosActionsSpeakLouder2019
+
 ### Feature Set Significance Tests
 
+The results outlined in @tbl-concede-classifier-test-results and @tbl-score-classifier-test-results only outline point estimates for classifier performance, and thus we lack sufficient evidence to determine whether the observed variation between classifiers may just be due to random variation. In line with the research objectives, we are particularly interested in whether the observed differences in AUC scores between classifiers using different feature sets *within the same classifier type (concede vs score) and technique* vary significantly.  Given that each classifier technique within each type of classifier has $4$ feature sets and we want to compare them pairwise, we have $4 \choose 2$ unique pairwise comparisons to make (i.e. $6$). 
 
+To establish whether the observed differences are actually *surprising*, under the assumption that there are no significant differences in AUC scores between classifiers, we can employ the DeLong test [@delongComparingAreasTwo1988] on each pairwise comparison of features sets within the same classifier type and technique. 
 
-{{< pagebreak >}}
+The DeLong test is a non-parametric significance test used to compare the AUCs of two ROC curves which are correlated, due to being evaluated on the same set of test labels. The test estimates the covariance matrix $S$ between the two ROC curves being compared.
 
-#### Concedes Classifier
+$$
+S = \begin{bmatrix}\text{Var}\left(\widehat{AUC_{1}}\right) & \text{Cov}\left(\widehat{\text{AUC}_{1}},\, \widehat{\text{AUC}_{2}}\right) \\ \text{Cov}\left(\widehat{\text{AUC}_{1}},\, \widehat{\text{AUC}_{2}}\right) & \text{Var}\left(\widehat{AUC_{2}}\right)\end{bmatrix}
+$$ {#eq-auc-covariance-matrix}
+
+$S$ can then be used to derive the variance on the difference between the two AUC scores.
+
+$$
+\text{Var}\left(\widehat{\text{AUC}_{1}} - \widehat{\text{AUC}_{2}}\right) = \text{Var}\left(\widehat{\text{AUC}_{1}}\right) + \text{Var}\left(\widehat{\text{AUC}_{2}}\right) - 2\left(\text{Cov}\left(\widehat{\text{AUC}_{1}},\, \widehat{\text{AUC}_{2}}\right)\right)
+$$ {#eq-var-of-auc-diff}
+
+Taking the observed difference $\Delta = \widehat{\text{AUC}_{1}} - \widehat{\text{AUC}_{2}}$ and dividing by the standard error of this difference provides a $z$ statistic for $Delta$
+
+$$
+z = \frac{\Delta}{\sqrt{\text{Var}(\Delta)}}
+$$
+
+Under the null hypothesis that the true population AUC scores are equal $H_{0}:\text{AUC}_{1} = \text{AUC}_{2}$, we can calculate the $p$-value of this observed $z$ statistic. Provided that $p$ is less than or equal to a pre-specified significance threshold $\alpha$, we can conclude that our estimate provides sufficient evidence to reject $H_{0}$. These significance tests will employ a standard significance threshold of $0.05$.
+
+An important caveat here is that given we are employing $6$ pairwise comparisons within each classifier type and technique, the family-wise error rate of these $6$ comparisons will exceed $\alpha$. This is because each indiviual significance test has a $5\%$ chance of producing a false positive (concluding a significant difference when there actually isn't one). The probability of obtaining at least $1$ false positive within a family of $m$ significance tests is:
+
+$$
+\text{FWER} = 1 - (1-\alpha)^{m}
+$$ {#eq-family-wise-error-rate-one-false-positive}
+
+$m=6$ for this project as we are making pairwise comparisons between the $4$ different feature sets *within the same classifier type and technique*. This equates to a probability of obtaining a single false positive within a single family of $\text{FWER} = 1 - (1-0.05)^{6} \approx 0.265\$. The Holm-Bonferroni method [@holmSimpleSequentiallyRejective1979] can be used to provide corrected $p$-values in light of their $\text{FWER}$. 
+
+This method first sorts each computed $p$-value for the $m$ significance tests in ascending order and adjusts the significance threshold using the ratio $\frac{\alpha}{m + 1 - k}$, where $k$ is the index (starting at $1$) of each $p$-value in the sorted list. The first $p$-value is therefore testing if $p \le \frac{\alpha}{m + 1 - 1}$. If this is true, we move to the next $p$-value in the list and increment $k$. This continues until either the condition is not met, in which case the remaining significance tests are deemed non-significant, or all $m$ tests have been corrected.
+
+The implementation of signficance threshold adjustment in the `statsmodels` package involves adjusting the computed $p$-values themselves, rather than adjusting the significance threshold [@wrightAdjustedPValuesSimultaneous1992, pp. 1009; @josefperktoldStatsmodelsStatsmodelsRelease2024]. Instead, we can take each $p$-value computed from the DeLong tests, again sorted in ascending order, and apply the following adjustment to each:
+
+$$
+\tilde{p}_{(i)} = \max_{1\le j\le i}\left\{(m-j+1)p_{j}\right\} 
+$$ {#eq-holm-adjusted-p-value}
+
+#### Concedes Classifier {#sec-concedes-classifier}
+
+\
 
 ```{python} 
 #| echo: false
@@ -816,6 +960,12 @@ df = (
 )
 ```
 
+\
+
+@tbl-concedes-catboost-significance-test shows no significant pairwise differences, indicating that the addition of spatial context yielded a non-significant change in classifier performance. We therefore lack sufficient evidence to suggest that spatial context improves the CatBoost concede classifier performance, yet we can also say there is insufficient evidence that spatial context yields a decrease in performance for this classifier technique.
+
+\
+
 ```{python} 
 #| echo: false
 #| label: tbl-concedes-lr-significance-test
@@ -827,8 +977,21 @@ df = (
     concedes_logistic_regression_comparison_significance_test_results_df
 )
 
+def edit_cells(data):
+    styles = pd.DataFrame(
+        "",
+        index=data.index,
+        columns=data.columns,
+    )
+    styles.iat[0, 2] = "background-color: gold;"
+    styles.iat[2, 2] = "background-color: gold;"
+    styles.iat[3, 2] = "background-color: gold;"
+    styles.iat[4, 2] = "background-color: gold;"
+    return styles
+
 (
     df.style
+    .apply(edit_cells, axis=None)
     .hide(axis="index")
     .format({
         "z": "{:.2f}",
@@ -839,6 +1002,12 @@ df = (
     })
 )
 ```
+
+\
+
+@tbl-concedes-lr-significance-test shows $4$ of the $6$ pairwise comparisons yielded a statistically significant $z$-statistic. Results show that the addition of spatial context features, both *manual* and *embeddings*, improved logistic regression concede classifier performance substantially. Despite this, whilst a non-significant difference between *embeddings* and *manual* features sets was observed, the *manual* feature set logistic regression classifier showed a statistically significant improvement in performance compared to the logistic regression classifier using *all* feature sets, rising from $0.786$ to $0.791$ ($z$ = 2.36, Holm-adjusted $p$ = .050). This would suggest that, for the concede logistic regression classifier, the addition of spatial embeddings does not yield improved performance that is significantly greater than what is achieved by the manually-engineered feature set, and the inclusion of both feature sets results in a detriment to performance compared with what is achieved by the *manual* feature set.
+
+\
 
 ```{python} 
 #| echo: false
@@ -874,6 +1043,12 @@ def edit_cells(data):
 )
 ```
 
+\
+
+For the random forest concede classifier, @tbl-concedes-rf-significance-test shows just $1$ statistically significant pairwise difference in classifier performance, that being *all vs embeddings* ($z$ = -2.69, Holm-adjusted $p$ = .040). In light of this, it would appear that the random forest concede classifier did not substantially benefit from the introduction of spatial context features.
+
+\
+
 ```{python} 
 #| echo: false
 #| label: tbl-concedes-xgboost-significance-test
@@ -892,7 +1067,7 @@ def edit_cells(data):
         columns=data.columns,
     )
     styles.iat[0, 2] = "background-color: gold;"
-    styles.iat[3, 2] = "background-color: gold;"
+    styles.iat[4, 2] = "background-color: gold;"
     return styles
 
 (
@@ -909,9 +1084,13 @@ def edit_cells(data):
 )
 ```
 
-{{< pagebreak >}}
+\
 
-#### Scores Classifier
+@tbl-concedes-xgboost-significance-test shows $2$ significant pairwise differences, whereby the *baseline vs manual* comparison yielded a statistically significant decrease in model performance ($z$ = -3.40, Holm-adjusted $p$ = .004), and the *all vs baseline* comparison shows a significant increase in classifier performance ($z$ = 2.82, Holm-adjusted $p$ = .020). Taken together, we find evidence of a significant reduction in XGBoost concede classifier performance due to the introduction of manually-engineered spatial features, despite a non-significant reduction due to the introduction of spatial embeddings. 
+
+#### Scores Classifier {#sec-scores-classifier}
+
+\
 
 ```{python} 
 #| echo: false
@@ -931,6 +1110,7 @@ def edit_cells(data):
         columns=data.columns,
     )
     styles.iat[0, 2] = "background-color: gold;"
+    styles.iat[1, 2] = "background-color: gold;"
     styles.iat[2, 2] = "background-color: gold;"
     styles.iat[3, 2] = "background-color: gold;"
     styles.iat[4, 2] = "background-color: gold;"
@@ -949,6 +1129,12 @@ def edit_cells(data):
     })
 )
 ```
+
+\
+
+@tbl-scores-catboost-significance-test reveals $5$ of the $6$ pairwise comparisons to be statistically significant. The inclusion of *all* feature sets showed improved performance compared to the *baseline*, *embeddings* and *manual* feature sets, respectively. Both the *embeddings* ($z$ = 2.38, Holm-adjusted $p$ = .030) and *manual* ($z$ = 2.98, Holm-adjusted $p$ = .009) feature sets showed a significant improvement in performance compared to the *baseline* feature set. However, given that the *embeddings vs manual* feature sets did not yield a significant difference in CatBoost score classifier performance, it would appear that each spatial context feature set contributes to improving CatBoost score classifier performance roughly equally. Despite this, the improvement in performance observed when both feature sets are included suggests each feature set provides distinct information which the CatBoost score classifier can leverage to improve performance beyond what is achieved when either then *embeddings* or *manual* feature sets are excluded.
+
+\
 
 ```{python} 
 #| echo: false
@@ -971,7 +1157,6 @@ def edit_cells(data):
     styles.iat[2, 2] = "background-color: gold;"
     styles.iat[3, 2] = "background-color: gold;"
     styles.iat[4, 2] = "background-color: gold;"
-    styles.iat[5, 2] = "background-color: gold;"
     return styles
 
 (
@@ -987,6 +1172,14 @@ def edit_cells(data):
     })
 )
 ```
+
+\
+
+@tbl-scores-lr-significance-test outlines DeLong test results for the logistic regression score classifier. We can observe $4$ statistically significant pairwise differences. The overall finding for this classifier is that the introduction of spatial embeddings appears to improve classifier performance more substantially than that achieved by the manually-engineered feature set. 
+
+Whilst both spatial context feature sets demonstrate a substantial statistically significant improvment in classifier performance compared to the *baseline* feature set, in comparing the logistic regression score classifier using *all* features with each spatial context feature set, we see that the addition of manually-engineered features (the *all* feature set) compared to the *embeddings* feature set (i.e. the *all vs embeddings* comparison) shows no statistically significant difference in classifier performance ($z$ 0.31, Holm-adjusted $p$ = .800). However, we do observe a statistically significant decrease in classifier performance when we compare *all vs manual* ($z$ = -7.49, Holm-adjusted $p$ < .001). Taken together, these findings suggest that the logistic regression score classifier benefits more greatly from the introduction of spatial embeddings than manually-engineered features, in terms of classifier performance.
+
+\
 
 ```{python} 
 #| echo: false
@@ -1006,9 +1199,9 @@ def edit_cells(data):
         columns=data.columns,
     )
     styles.iat[0, 2] = "background-color: gold;"
-    styles.iat[1, 2] = "background-color: gold;"
     styles.iat[2, 2] = "background-color: gold;"
     styles.iat[3, 2] = "background-color: gold;"
+    styles.iat[4, 2] = "background-color: gold;"
     styles.iat[5, 2] = "background-color: gold;"
     return styles
 
@@ -1025,6 +1218,12 @@ def edit_cells(data):
     })
 )
 ```
+
+\
+
+Regarding the random forest score classifier, @tbl-scores-rf-significance-test again shows $5$ of the $6$ pairwise differences to be statistically significant. Given that *all vs embeddings* yields a statistically non-significant difference in classifier performance ($z$ = 0.39, Holm-adjusted $p$ = .700), and the *embeddings vs manual* comparison showed a moderate statistically significant decrease in performance ($z$ = -7.72, Holm-adjusted $p$ < .001), we may again observe evidence that the random forest score classifier benefitted more greatly from the addition of spatial embedding features than it did from manually-engineered features.
+
+\
 
 ```{python} 
 #| echo: false
@@ -1064,29 +1263,125 @@ def edit_cells(data):
 )
 ```
 
-{{< pagebreak >}}
+\
 
-### VAEP EDA
+Lastly, @tbl-scores-xgboost-significance-test outlines DeLong test results for the XGBoost score classifier. Matching the same pattern observed in @tbl-scores-rf-significance-test, we may again observe evidence that spatial embeddings provided additional information which the classifier could leverage, compared to that provided by manually-engineered features. That being said, the statistically significant difference in classifier performance between *embeddings vs manual* ($z$ = -3.52, Holm-adjusted $p$ < .001) is smaller ($\Delta\text{AUC } = 0.0132$) than that observed for the random forest score classifier ($\Delta\text{AUC } = 0.0567$).
 
-![VAEP per Action vs Actions per 90 Minutes Played](figures/vaep_per_action_actions_per_90.png){#fig-vaep-per-action-actions-per-90}
+### Classifiers Used for VAEP in this Project {#sec-classifiers-used-in-project}
+
+Given the results outlined in @sec-classifier-training. @sec-concedes-classifier and @sec-scores-classifier, the overall best performing classifier techniques was XGBoost, for both scoring and conceding predictions. Specifically, the *baseline* XGBoost concede classifier and the *all* features XGBoost score classifier achieved the best AUC scores. On this basis, the classifiers used to produce VAEP scores are these two classifiers. However, given that this project is, in large part, aiming to explore the performance and behaviour of spatial context features, evaluations of model interpretability will used the XGBoost score and concede classifiers trained on *all* feature sets.
+
+### Valuing Actions by Estimating Probabilities (VAEP) EDA
+
+As seen in @decroosActionsSpeakLouder2019, it may also be useful to assess how derived VAEP values behave and align with domain-specific intuition. It is desireable for derived metrics in any domain to display strong face validity, that is, the metric should provide a well-calibrated and "plausible" [@jacobsMeasurementFairness2021, pp. 5] measure of the phenomenon it is intended to capture. In measuring action value, one inherent limitation is that action-valuation metrics like VAEP lack a "ground truth" upon which to draw comparisons [@decroosVAEPObjectiveApproach2020]. There is no objective measure of action value that we can observe in the world beyond what is provided by the very action-valuation metrics researchers have developed. Given that such metrics are intended to provide a quantitative measure of action value, assessing face validity is fraught with subjectivity and it is thus somewhat trivially obvious that this issue arises. 
+
+#### "The Messi Test"
+
+One heuristic used in sports analytics is to compare derived action or player valuations with the intuitions of both technical and non-technical domain experts. For instance, @pappalardoPlayeRankDatadrivenPerformance2019 calibrate their PlayeRank metric by assessing its agreement with a panel of experienced football scouts. Regarding the period of time which publicly available events data, such as those provided by StatsBomb, covers, it is widely regarded that players such as *Lionel Messi* and *Atiana Bonmati* constitute one of the most, if not the most, valuable male and female players in world football, respectively (For example, they both lead the all-time most number of Ballon d'Or wins by a single player for their respective gender [$8$ and $3$, respectively], @BallonDOr2026; @BallonDOrFeminin2026). Dubbed "the Messi test", the heuristic suggests that an action value metric displays strong face validity if it correctly rates players who are widely regarded as being exceptionally talented as highly performing.
+
+![VAEP per Action vs Actions per 90 Minutes Played](figures/vaep_per_action_actions_per_90.png){#fig-vaep-per-action-actions-per-90 width=90%}
+
+\
+
+We can see from @fig-vaep-per-action-actions-per-90 that our "Messi/Bonmati test" appears to have been passed successfully. The plot includes players who have player more than $270$ minutes across the competitions included in this project's dataset and compares the number of actions they perform per $90$ minutes of playtime with the average VAEP value of the set of actions they took. We would expect more valuable players to exhibit both high volume (actions per $90$) and high quality (VAEP per action) across their playtime and action sets. We can see that both *Messi* and *Bonmati* are positioned on the upper frontier of the scatter plot, exactly where valuable players would be expected to appear. Furthermore, the derived VAEP per action values fall within the same magnitude as that observed in @decroosActionsSpeakLouder2019, indicating some degree of agreement in valuation with previous VAEP models. The number of actions is likely generally higher than seen in @decroosActionsSpeakLouder2019 as this project uses atomic-SPADL actions, rather than standard SPADL actions.
+
+#### VAEP Player Ratings & Player Market Value
+
+@decroosActionsSpeakLouder2019 also explore how their derived VAEP player ratings (see @eq-vaep-player-rating) relate to the market value of players. The authors report the top-$10$ rated Premier League players from the $2017/18$ season along with their VAEP player ratings for that season (see Table 1d in their article). 
+
+\
+
+```{python}
+#| echo: false
+#| label: tbl-male-vaep-ratings
+#| tbl-cap: "Top-10 VAEP Player Ratings (Male)"
+#| tbl-cap-location: bottom
+#| tbl-pos: H
+
+df = top10_vaep_player_ratings_male_df
+
+(
+    df.style
+    .hide(axis="index")
+    .format({
+        "minutes_played": "{:.1f}"
+    })
+)
+```
+
+\ 
+
+
+
+\ 
+
+```{python}
+#| echo: false
+#| label: tbl-female-vaep-ratings
+#| tbl-cap: "Top-10 VAEP Player Ratings (Female)"
+#| tbl-cap-location: bottom
+#| tbl-pos: H
+
+df = top10_vaep_player_ratings_female_df
+
+(
+    df.style
+    .hide(axis="index")
+    .format({
+        "minutes_played": "{:.1f}"
+    })
+)
+```
+
+\ 
+
+![VAEP Player Ratings vs Transfermarkt Market Value](figures/vaep_rating_market_value_scatterplot.png){#fig-vaep-rating-market-value-scatterplot width=90%}
+
+\
 
 ## Model Interpretation
 
 ### Permutation Importance
 
+Beyond assessing the performance and face validity of the VAEP classifier models, we may also attempt to interpret which features are most influential in the decisions made by these classifiers. By exploring permutation importance, we can accumulate evidence to indicate which features are most impactful in enabling strong classification performance.
+
+#### Grouped Permutation Importance
+
 ![Grouped Permutation Importance](figures/grouped_permutation_importance.png){#fig-grouped-permutation-importance}
+
+@fig-grouped-permutation-importance shows the average decrease in AUC (across $10$ iterations) due to the random permutation of *baseline* features, spatial embeddings (*embeddings*) and manually-engineered spatial features (*manual*). 
+
+For the selected concede classifier (see @sec-classifiers-used-in-project), it would appear that the *baseline* feature set dominates as most important for determining the classifier's predictions, whereby the random permutation of each of these baseline features in tandem results in a reduction in AUC of around $0.18$. By contrast, the *embeddings* and *manual* feature sets exhibit a much smaller reduction in AUC when randomly permuted. That being said, the random permutation of the *embeddings* and *manual* feature sets does still result in a positive-valued reduction in AUC, suggesting that these features do carry useful classification information despite @tbl-concede-classifier-test-results showing the addition of these feature sets to reduce classifier AUC.
+
+Regarding the score classifier, an alternative pattern emerges. We can see that the reduction in AUC due to random grouped permutation of the *baseline* and *embeddings* feature sets is roughly identical, at around $0.09$. The *manual* feature set appears much less important than these other two, given that is exhibits an average reduction of around $0.02$. 
+
+Contrasting the grouped permutation results of the two classifiers, we see that spatial context features (specifically the spatial embeddings) appear much more important in determining classification decisions for the score classifier than for the concede classifier. This, of course, aligns with the observations made in @tbl-scores-xgboost-significance-test. Such findings would suggest that the information represented by spatial embeddings captures spatial context relevant to informing the probability of a given action resulting in a goal being scored and carries very little information which informs the chance of conceding from a given action.
+
+#### Baseline Feature Set Permutation Importance
+
+We can zoom in on each individual feature part of the *baseline* feature set to examine which features carry importance for each prediction task (score or concede). Given that each feature in the model has an additional $9$ lagged variants (in order to reflect the $k=10$ previous actions), each feature will be very highly correlated with its own lagged variants. As such, it would be more appropriate to group together each feature with its lagged variants before evaluating the permutation importance of each feature.
 
 ![Concede Classifier Permutation Importance: Baseline Features](figures/concedes_classifier_permutation_importance_baseline.png){#fig-concede-permutation-importance-baseline}
 
+@fig-concede-permutation-importance-baseline reveals the current time (in seconds) of the set of actions (i.e. the gamestate) within the $k=10$ window of the current action to be the most important features. The `team` features are boolean indicators for whether the team who were in possession in action $i-k$ are still in possession in the current action $i$. This possession indicator also constitutes an important baseline feature for predicting concede probabilities. It would therefore appear that most of the information the concede classifier gains from baseline features is derived from just the timestamp of the gamestate and whether or not possession is retained or gained during the gamestate. 
+
+We can also note that `goalscore_diff` also constitutes a somewhat important baseline feature, along with `actiontype_bad_touch` and `actiontype_foul`
+
 ![Score Classifier Permutation Importance: Baseline Features](figures/scores_classifier_permutation_importance_baseline.png){#fig-score-permutation-importance-baseline}
 
-![Concede Classifier Permutation Importance: Manually Engineered Spatial Features](figures/concedes_classifier_permutation_importance_manual_spatial.png){}
+@fig-score-permutation-importance-baseline shows an alternative pattern. Whilst the timestamp of the gamestate is still important, the most important baseline features relate to the relative position of the gamestate to the opponent's goal. `x`, `dist_to_goal` and `angle_to_goal` constitute the $3$ most important baseline features.
 
-![Score Classifier Permutation Importance: Manually Engineered Spatial Features](figures/scores_classifier_permutation_importance_manual_spatial.png){}
+#### Manually-Engineered Feature Set Permutation Importance
 
-![Concede Classifier Permutation Importance: Spatial Embedding Dimensions](figures/concedes_classifier_permutation_importance_embeddings.png){}
+![Concede Classifier Permutation Importance: Manually Engineered Spatial Features](figures/concedes_classifier_permutation_importance_manual_spatial.png){#fig-concede-permutation-importance-manual}
 
-![Score Classifier Permutation Importance: Spatial Embedding Dimensions](figures/scores_classifier_permutation_importance_embeddings.png){}
+![Score Classifier Permutation Importance: Manually Engineered Spatial Features](figures/scores_classifier_permutation_importance_manual_spatial.png){#fig-score-permutation-importance-manual}
+
+#### Spatial Embedding Dimensions Permutation Importance
+
+![Concede Classifier Permutation Importance: Spatial Embedding Dimensions](figures/concedes_classifier_permutation_importance_embeddings.png){#fig-concede-permutation-importance-embeddings}
+
+![Score Classifier Permutation Importance: Spatial Embedding Dimensions](figures/scores_classifier_permutation_importance_embeddings.png){#fig-score-permutation-importance-embeddings}
 
 ### Partial Dependence Plots
 
@@ -1137,9 +1432,31 @@ def edit_cells(data):
 )
 ```
 
+\
+
+![Pitch Heatmap of Cluster 0](figures/kmeans_cluster_0_heatmap.png){#fig-heatmap-cluster-0}
+
+\
+
+![Pitch Heatmap of Cluster 1](figures/kmeans_cluster_1_heatmap.png){#fig-heatmap-cluster-1}
+
+\
+
+![Pitch Heatmap of Cluster 2](figures/kmeans_cluster_2_heatmap.png){#fig-heatmap-cluster-2}
+
+\
+
+![Pitch Heatmap of Cluster 3](figures/kmeans_cluster_3_heatmap.png){#fig-heatmap-cluster-3}
+
+\
+
 ### UMAP
 
 ![UMAP Coloured by K-means Cluster with Varying UMAP Hyperparameter Values](figures/umap_hyperparameter_range_clusters.png){#fig-umap-hyperparameter-range-clusters}
+
+### Spatial Embedding Dimension and Manually-Engineered Feature Correlations
+
+![Manually-Engineered Spatial Features & Spatial Embeddings Correlation Heatmap](figures/manual_embeddings_corr_heatmap.png){#fig-manual-embeddings-corr-heatmap}
 
 # Discussion
 

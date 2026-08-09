@@ -18,9 +18,20 @@ for actions_file in os.listdir("data/actions"):
     opponent_hull_values = []
     teammate_hull_values = []
 
-    for freeze_frame in tqdm(df["freeze_frame"], desc="Processing freeze frames"):
+    for _, row in tqdm(
+        df.iterrows(),
+        total=len(df),
+        desc="Processing freeze frames",
+    ):
+
+        freeze_frame = row["freeze_frame"]
+
+        flip = row["team_id"] != row["home_team_id"]
         
-        distance_values = actors_euclidean_distance_to_each_player(freeze_frame)
+        distance_values = actors_euclidean_distance_to_each_player(
+            freeze_frame,
+            flip=flip,
+        )
 
         if distance_values is None:
             opponent_minimum_distance_values.append(np.nan)
@@ -53,10 +64,14 @@ for actions_file in os.listdir("data/actions"):
 
         radius_counts = number_of_players_within_radius_of_actor(
             freeze_frame,
-            radius=10
+            radius=5,
+            flip=flip,
         )
 
-        hull_areas = player_convex_hull_area(freeze_frame)
+        hull_areas = player_convex_hull_area(
+            freeze_frame,
+            flip=flip,
+        )
 
         if radius_counts is None:
             opponent_radius_values.append(np.nan)

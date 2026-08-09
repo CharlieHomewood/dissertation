@@ -1,5 +1,3 @@
-# spatial_embeddings.py
-
 import json
 import numpy as np
 import pandas as pd
@@ -8,17 +6,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-
-# =============================================================================
-# DATA PROCESSING
-# =============================================================================
-
-def freeze_frame_to_array(freeze_frame) -> np.ndarray:
-    """
-    Convert freeze frame → (num_players, 5)
-    Features:
-        x_norm, y_norm, teammate, actor, keeper
-    """
+def freeze_frame_to_array(
+    freeze_frame,
+    flip: bool = False,
+) -> np.ndarray:
 
     if isinstance(freeze_frame, str):
         try:
@@ -33,14 +24,28 @@ def freeze_frame_to_array(freeze_frame) -> np.ndarray:
 
     for p in freeze_frame:
         loc = p.get("location")
+
         if not isinstance(loc, list) or len(loc) != 2:
             continue
 
-        x, y = loc
+        sb_x, sb_y = loc
+
+        SB_LENGTH = 120
+        SB_WIDTH = 80
+
+        SPADL_LENGTH = 105
+        SPADL_WIDTH = 68
+
+        x = (sb_x - 0.05) / SB_LENGTH * SPADL_LENGTH
+        y = SPADL_WIDTH - (sb_y - 0.05) / SB_WIDTH * SPADL_WIDTH
+
+        if flip:
+            x = SPADL_LENGTH - x
+            y = SPADL_WIDTH - y
 
         rows.append([
-            x / 105.0,
-            y / 68.0,
+            x,
+            y,
             float(p.get("teammate") is True),
             float(p.get("actor") is True),
             float(p.get("keeper") is True),
@@ -50,26 +55,27 @@ def freeze_frame_to_array(freeze_frame) -> np.ndarray:
 
 
 class FreezeFrameAutoencoderDataset(Dataset):
-    """
-    Precomputes arrays once (faster + avoids repeated parsing)
-    """
 
-    def __init__(self, df: pd.DataFrame):
+    def __init__(self, df):
         if "freeze_frame" not in df.columns:
             raise ValueError("Missing freeze_frame column")
 
-        self.data = []
-
-        for ff in df["freeze_frame"].tolist():
-            arr = freeze_frame_to_array(ff)
-            if arr.shape[0] > 0:
-                self.data.append(arr)
+        self.df = (
+            df[df["freeze_frame"].notna()]
+            .reset_index(drop=True)
+        )
 
     def __len__(self):
-        return len(self.data)
+        return len(self.df)
 
     def __getitem__(self, idx):
-        return self.data[idx]
+        row = self.df.iloc[idx]
+
+        return freeze_frame_to_array(
+            row["freeze_frame"],
+            flip=(row["team_id"] != row["home_team_id"]),
+        )
+
 
 
 def collate_freeze_frame_autoencoder(batch):
@@ -85,11 +91,6 @@ def collate_freeze_frame_autoencoder(batch):
         mask[i, :n] = False
 
     return x, mask
-
-
-# =============================================================================
-# MODEL
-# =============================================================================
 
 class FreezeFrameSetEncoder(nn.Module):
     def __init__(self, input_dim=5, hidden_dim=128, embedding_dim=32,
@@ -134,10 +135,16 @@ class FreezeFrameSetEncoder(nn.Module):
 
         return self.out(pooled.squeeze(1))
 
-
 class FreezeFramePointAutoencoder(nn.Module):
-    def __init__(self, embedding_dim=32, max_players=22,
-                 hidden_dim=128, num_heads=4, num_layers=2):
+    def __init__(
+        self,
+        embedding_dim=32,
+        max_players=22,
+        hidden_dim=128,
+        num_heads=4,
+        num_layers=2,
+        dropout=0.1,
+    ):
         super().__init__()
 
         self.max_players = max_players
@@ -147,6 +154,7 @@ class FreezeFramePointAutoencoder(nn.Module):
             hidden_dim=hidden_dim,
             num_heads=num_heads,
             num_layers=num_layers,
+            dropout=dropout,
         )
 
         self.decoder = nn.Sequential(
@@ -163,18 +171,10 @@ class FreezeFramePointAutoencoder(nn.Module):
         out = self.decoder(z)
         out = out.view(-1, self.max_players, 5)
 
-        xy = torch.sigmoid(out[:, :, :2])
-        flags = torch.sigmoid(out[:, :, 2:])
-
-        return torch.cat([xy, flags], dim=-1), z
+        return out, z
 
 
-# =============================================================================
-# LOSS
-# =============================================================================
-
-def batched_chamfer_loss(pred, target, mask,
-                         xy_weight=1.0, flag_weight=0.1):
+def batched_chamfer_loss(pred, target, mask, xy_weight, flag_weight):
 
     pred_xy = pred[:, :, :2]
     target_xy = target[:, :, :2]
@@ -182,15 +182,14 @@ def batched_chamfer_loss(pred, target, mask,
     pred_flags = pred[:, :, 2:]
     target_flags = target[:, :, 2:]
 
-    dist = torch.cdist(pred_xy, target_xy)
+    with torch.amp.autocast("cuda", enabled=False):
+        dist = torch.cdist(pred_xy.float(), target_xy.float()) ** 2
 
     dist = dist.masked_fill(mask.unsqueeze(1), 1e6)
 
-    # pred → target
     p2t, idx = dist.min(dim=2)
     p2t = p2t.mean(dim=1)
 
-    # target → pred
     t2p, _ = dist.min(dim=1)
 
     valid = (~mask).float()
@@ -204,6 +203,9 @@ def batched_chamfer_loss(pred, target, mask,
         idx.unsqueeze(-1).expand(-1, -1, target_flags.size(-1))
     )
 
-    flag_loss = F.binary_cross_entropy(pred_flags, matched_flags)
+    flag_loss = F.binary_cross_entropy_with_logits(
+        pred_flags,
+        matched_flags
+    )
 
     return xy_weight * xy_loss + flag_weight * flag_loss
