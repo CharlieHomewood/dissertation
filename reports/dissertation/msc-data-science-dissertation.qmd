@@ -94,7 +94,7 @@ The adoption of analytics in association football has grown significantly in the
 
 VAEP considers the probability of scoring or conceding within the next $k$ events to assign a value between $-2$ and $2$ to each action. VAEP, like other such metrics, typically uses action-centric features such as the action's start and end location and type (carry, pass, shot) in estimating scoring/conceding probabilties, but this approach does not explicitly model the wider spatial context [@desa-freireEventDataBased2025]. The spatial context - the position of teammates and opponents around the actor - of an action determines the options available to a player, showing viable passing options or space to carry into, as well as the proximity of opposition defenders applying pressure or blocking options. 
 
-The StatsBomb Open Data repository [@StatsbombOpendata2026] provides events (e.g. carries, passes, shots) data for matches, along with *three-sixty* freeze-frames which indicate the positions of players within proximity of the acting player. Such data can be used to incorporate spatial context as a predictive feature. To illustrate this, **@fig-intro-event-example** compares a pass event from a match with and without the surrounding spatial context. Without the spatial context, this pass appears to offer limited progression towards the opponent's goal. Traditional VAEP would consider how passes of this trajectory tend to result in scoring/conceding, but the addition of spatial context differentiates this particular pass from others of similar trajectory. **@fig-intro-event-example** shows how the left hand side of the actor is blocked by multiple opponents (red) and this pass moves the ball into space on the right flank to open an attacking opportunity (in this case, a long-ranged shot)[^1]. Spatial context could allow finer-grained differentiation, rather than aggregating all passes of this trajectory.
+The StatsBomb Open Data repository [@StatsbombOpendata2026] provides events (e.g. carries, passes, shots) data for matches, along with $360$ freeze-frames which indicate the positions of players within proximity of the acting player. Such data can be used to incorporate spatial context as a predictive feature. To illustrate this, **@fig-intro-event-example** compares a pass event from a match with and without the surrounding spatial context. Without the spatial context, this pass appears to offer limited progression towards the opponent's goal. Traditional VAEP would consider how passes of this trajectory tend to result in scoring/conceding, but the addition of spatial context differentiates this particular pass from others of similar trajectory. **@fig-intro-event-example** shows how the left hand side of the actor is blocked by multiple opponents (red) and this pass moves the ball into space on the right flank to open an attacking opportunity (in this case, a long-ranged shot)[^1]. Spatial context could allow finer-grained differentiation, rather than aggregating all passes of this trajectory.
 
 [^1]: The pass event id is '`{python} intro_event_example_id`' and the subsequent long-ranged shot event id is '`{python} intro_event_example_shot_id`'
 
@@ -197,7 +197,7 @@ Previous research has represented spatial context using features engineered from
 
 As described in @sec-xg, @cefisNewXGModel2025 derived two binary features `D1.OpponentsPlayer` and `D2.OpponentsPlayer` from player $x$ and $y$ co-coordinates, indicating the number of players within the immediate frontal proximity of the shooter.
 
-@petersExpectedPassTurnovers2024 developed an Expected Pass Turnovers (xPT) metric, used to measure the probability that a given pass would result in a turnover (conceding possession to the opposition) which can be used to assess how player's passing ability during some time interval compares to what would be expected on average, given the set of passes made by that player and the contextual factors relating to those passes. The authors derive xPT values from a binary logistic mixed-effects model trained on a feature set which included two features derived from StatsBomb *three-sixty* freeze-frames: "three pressure radii" (the number of opponents within three radii of varying, but unspecified length around the ball carrier) and number of "unmarked teammates" (teammates with no opponents within 2m of them). The authors found the addition of these "positional" features improved model AUC by 6.1 points 
+@petersExpectedPassTurnovers2024 developed an Expected Pass Turnovers (xPT) metric, used to measure the probability that a given pass would result in a turnover (conceding possession to the opposition) which can be used to assess how player's passing ability during some time interval compares to what would be expected on average, given the set of passes made by that player and the contextual factors relating to those passes. The authors derive xPT values from a binary logistic mixed-effects model trained on a feature set which included two features derived from StatsBomb $360$ freeze-frames: "three pressure radii" (the number of opponents within three radii of varying, but unspecified length around the ball carrier) and number of "unmarked teammates" (teammates with no opponents within 2m of them). The authors found the addition of these "positional" features improved model AUC by 6.1 points 
 
 @amichayCharacterizingSpatialStructures2025 measured the areas of convex hulls and inner layers to represent team shapes. A convex hull, in this context, is the area inscribed between the outer-most positioned players on the pitch for a given team. A larger area corresponds to a wider/longer team shape, whereas a smaller area is narrower/shorter. Since this convex hull only considers the outer-most players, a second convex layer can be created from the players who do not contribute to the hull. The ratio of these two areas forms the author's derived Layer Ratio (LR) metric, which summarises the compactness of the team shape.
 
@@ -253,7 +253,7 @@ A further limitation is with the use of SPADL formatted data. Recent work by @jo
 
 ## Data Collection
 
-Data was obtained from the StatsBomb Open Data Repository via the `statsbombpy` [@StatsbombStatsbombpy2026], `socceraction` [@QuickstartSocceraction153, @decroosActionsSpeakLouder2019], and requests [@RequestsPythonHTTP] libraries. The `statsbombpy` and `socceractions` libraries were used to collect raw events data from the matches in each competition, whilst `requests` was used to collect *three-sixty* freeze-frames from the StatsBomb Open Data Repository directly. Events data was then merged with freeze-frame data and each competition's data was saved to an individual parquet file.
+Data was obtained from the StatsBomb Open Data Repository via the `statsbombpy` [@StatsbombStatsbombpy2026], `socceraction` [@QuickstartSocceraction153, @decroosActionsSpeakLouder2019], and requests [@RequestsPythonHTTP] libraries. The `statsbombpy` and `socceractions` libraries were used to collect raw events data from the matches in each competition, whilst `requests` was used to collect $360$ freeze-frames from the StatsBomb Open Data Repository directly. Events data was then merged with freeze-frame data and each competition's data was saved to an individual parquet file.
 
 ## Data Preprocessing
 
@@ -278,12 +278,12 @@ With the derived atomic-SPADL actions, spatial context features are subsequently
     "location": [float, float]
 }
 ```
-StatsBomb *three-sixty* freeze-frame JSON schema
+StatsBomb $360$ freeze-frame JSON schema
 :::
 
 \
 
-@fig-player-json outlines the JSON schema for StatsBomb *three-sixty* freeze-frames. Each freeze-frame JSON object has an associated `event_uuid` to enable joins with events data, and a `visible_area` polygon which indicates the viewing area from the broadcast camera at the moment the action took place. We can see from the available data, that it is possible to construct the opposition proximity metric from @cefisNewXGModel2025 and a partial convex hull area or LR as explored by @amichayCharacterizingSpatialStructures2025. Given that the sample in this project applies to on-ball actions, not just shots, the opposition proximity metric from @cefisNewXGModel2025 is adapted to consider a $\ang{360}$ radius around the player, rather than a frontal semi-circle. 
+@fig-player-json outlines the JSON schema for StatsBomb $360$ freeze-frames. Each freeze-frame JSON object has an associated `event_uuid` to enable joins with events data, and a `visible_area` polygon which indicates the viewing area from the broadcast camera at the moment the action took place. We can see from the available data, that it is possible to construct the opposition proximity metric from @cefisNewXGModel2025 and a partial convex hull area or LR as explored by @amichayCharacterizingSpatialStructures2025. Given that the sample in this project applies to on-ball actions, not just shots, the opposition proximity metric from @cefisNewXGModel2025 is adapted to consider a $\ang{360}$ radius around the player, rather than a frontal semi-circle. 
 
 Thus, for this project, the following spatial features were engineered for teammates and opponents, respectively, using *three-sixty* data. These are both inspired by the literature and also chosen by myself:
 
@@ -630,14 +630,6 @@ $$ {#eq-holm-adjusted-p-value}
 
 ## Model Interpretability
 
-### Permutation Importance
-
-Permutation importance is a method for estimating feature importance by randomly permuting one or more features and evaluating the change in model performance metrics. Features which, when permuted, result in a larger drop in model performance can be inferred to be more important in model estimations. Care should be taken with multicolinearity, as permutations will not entirely disconnect their relationship with others model features since those relationships can continue to exist via their colinear counterparts. Permutation importance will thus be used in this project to highlight which features or set of features are most determinative of the VAEP values assigned to actions. 
-
-### Partial Dependence Plots (PDPs)
-
-Partial dependence plots (PDPs) [@friedmanGreedyFunctionApproximation2001] are used to visualise the relationship between some set of features (usually just $1$ or $2$) and the predictions made by a machine learning model, holding other features constant. In this case, we can use PDP plots to explore our interpretable feature set, that is the baseline and manually-engineered features, as opposed to the spatial embeddings whose dimensions are not directly interpretable.
-
 ### $k$-Means Clustering
 
 We can also explore the spatial embeddings via $k$-means clustering, similarly to how DeepCluster applies $k$-means to image embeddings generated by a convolutional neural network (CNN) [@caronDeepClusteringUnsupervised2019]. $k$-means is an unsupervised clustering algorithm which finds optimal locations for some $k$ centroids within the $d$-dimensional feature space. The algorithm initialises $k$ centroids within the feature space, assigns data points to their nearest centroid and then recalculates the location of each centroid to the position which minimises the distance to its assigned data points. The data points are then reassigned and the algorithm iterates until convergence. A number of distance measures may be used, with euclidean distance being most common.
@@ -647,6 +639,57 @@ $$
 $$ {#eq-euclidean}
 
 The benefit of using $k$-means clustering with the present project's spatial embeddings is that underlying relationships represented by these embeddings can be explored by comparing the properties of clusters. For instance, player position heatmaps for each cluster could be plotted to potentially reveal notable team shapes, or if certain clusters tend to involve certain action types over others. 
+
+Given that this clustering is being applied to embeddings, it would be preferable for the distance metric to reflect the notion of similarity within an embedding space. Embedding similarity can be determined by cosine similarity, whereby the cosine of the angle between the two vectors indicates how similar they are: a smaller angle corresponding to more similarity. For two embedding vectors $\vec{a}$ and $\vec{b}$, their cosine similarity is given by:
+
+$$
+\cos(a, b) = \frac{\vec{a} \cdot \vec{b}}{||\vec{a}||_{2}\times||\vec{b}||_{2}}
+$$ {#eq-cosine-sim}
+
+If we L$2$ normalise the embedding vectors such that $\hat{a} = \frac{a}{||a||_{2}}$ and $\hat{b} = \frac{b}{||b||_{2}}$, the squared Euclidean distance $||\hat{a}-\hat{b}||^{2}$ of the two normalised vectors is a monotonic transformation of their cosine similarity:
+
+$$
+\begin{align}
+\lVert\hat{a}-\hat{b}\rVert_2^2
+&= (\hat{a}-\hat{b}) \cdot (\hat{a}-\hat{b}) \\
+&= \hat{a}\cdot\hat{a}
+- 2\hat{a}\cdot\hat{b}
++ \hat{b}\cdot\hat{b} \\
+&\because \hat{a}\cdot\hat{a}
+= \hat{b}\cdot\hat{b}
+= 1 \\
+&\therefore
+\lVert\hat{a}-\hat{b}\rVert_2^2
+= 1 - 2\hat{a}\cdot\hat{b} + 1 \\
+&= 2 - 2\hat{a}\cdot\hat{b} \\
+&\boxed{
+\therefore\;
+\lVert\hat{a}-\hat{b}\rVert_2^2
+= 2(1-\hat{a}\cdot\hat{b})
+} \\
+&\because
+\cos(a,b)
+= \frac{\vec{a}\cdot\vec{b}}
+{\lVert\vec{a}\rVert_2\lVert\vec{b}\rVert_2},
+\quad
+\hat{a}=\frac{\vec{a}}{\lVert\vec{a}\rVert_2},
+\quad
+\hat{b}=\frac{\vec{b}}{\lVert\vec{b}\rVert_2} \\
+&\boxed{
+\therefore\;
+\hat{a}\cdot\hat{b}
+=
+\frac{\vec{a}\cdot\vec{b}}
+{\lVert\vec{a}\rVert_2\lVert\vec{b}\rVert_2}
+=
+\cos(a,b)
+} \\
+\\
+&\boxed{\therefore ||\hat{a}-\hat{b}\rVert_2^2 = 2(1-\hat{a}\cdot\hat{b})}
+\end{align}
+$$ {#eq-euclidean-distance-relates-to-cosine-similarity}
+
+As such, prior to performing $k$-means clustering with these embeddings, L$2$ normalisation will be applied to them.
 
 #### Choosing $k$
 
@@ -727,6 +770,16 @@ Each data point is then assigned an intialised lower-dimensional spectral embedd
 $$
 \mathcal{L} = \sum_{(i,j)}w_{ij}\log\left(\frac{w_{ij}}{\hat{w}_{ij}}\right) + (1-w_{ij})\log\left(\frac{1-w_{ij}}{1-\hat{w}_{ij}}\right)
 $$ {#eq-umap-loss-function}
+
+### Permutation Importance
+
+Permutation importance is a method for estimating feature importance by randomly permuting one or more features and evaluating the change in model performance metrics. Features which, when permuted, result in a larger drop in model performance can be inferred to be more important in model estimations. Care should be taken with multicolinearity, as permutations will not entirely disconnect their relationship with others model features since those relationships can continue to exist via their colinear counterparts. Permutation importance will thus be used in this project to highlight which features or set of features are most determinative of the VAEP values assigned to actions. 
+
+Given that certain features will be highly colinear (e.g. lagged variants) and that individual spatial embeddings dimensions are not atomically interpretable as classifier features, grouped permutation importance [@plagwitzSupportingAIExplainabilityAnalyzing2022] may also be used to treat blocks of features as a single group whose combined importance can be assessed.
+
+### Partial Dependence Plots (PDPs)
+
+Partial dependence plots (PDPs) [@friedmanGreedyFunctionApproximation2001] are used to visualise the relationship between some set of features (usually just $1$ or $2$) and the predictions made by a machine learning model, holding other features constant. In this case, we can use PDP plots to explore our interpretable feature set, that is the baseline and manually-engineered features, as opposed to the spatial embeddings whose dimensions are not directly interpretable.
 
 # Results
 
@@ -864,7 +917,7 @@ That being said, one might suggest that this could be an artefact of the amount 
 
 ### K-means Clustering: Spatial Embeddings
 
-To explore the spatial representations which may be encoded in these spatial embeddings, we explore the properties of each derived cluster. 
+To explore the spatial representations which may be encoded in these spatial embeddings, we can use k-means clustering on the derived embeddings. Given that not all actions in the dataset have associated freeze-frames, those actions without freeze-frames are assigned embeddings where all dimensions equate to $0$. Since such embeddings do not encode any meaningful information, they are excluded from this clustering analysis, which instead focuses upon embeddings which, in principle, have the possibility of encoding latent representations.
 
 \
 
@@ -872,7 +925,7 @@ To explore the spatial representations which may be encoded in these spatial emb
 
 \
 
-@fig-kmeans-elbow-plot provides the elbow method plot, indicating the marginal trade-off betweeen the number of clusters $k$ and the inertia of each model. A naive evaluation of this plot would arguably favour $k=4$ as this appears to constitute the "elbow" of the curve, although such a conclusion is inherently subjective. Instead, we can leverage additional model metrics to determine an appropriate value of $k$.
+@fig-kmeans-elbow-plot provides the elbow method plot, indicating the marginal trade-off betweeen the number of clusters $k$ and the inertia of each model. A naive evaluation of this plot would arguably favour $k=3$ as this appears to constitute the "elbow" of the curve, although such a conclusion is inherently subjective. Instead, we can leverage additional model metrics to determine an appropriate value of $k$.
 
 \
 
@@ -915,9 +968,11 @@ def edit_cells(data):
 
 \ 
 
-@tbl-kmeans-hyperparameter-results instead provides stronger evidence for $k=3$ being the appropriate number of clusters. We can see that $k=3$ produces the highest average Silhouette score ($0.36$), indicating weak clustering, and the lowest Davies-Bouldin index ($1.04$). This additional evidence provides an indication of between-cluster separation and within-cluster compactness, whilst inertia alone considers just compactness. As such, it is arguable that more emphasis be placed on the Silhouette score and Davies-Bouldin index.
+@tbl-kmeans-hyperparameter-results instead provides stronger evidence for $k=2$ being the appropriate number of clusters. We can see that $k=2$ produces the highest average Silhouette score ($0.37$), indicating weak clustering, and the lowest Davies-Bouldin index ($1.11$). This additional evidence provides an indication of between-cluster separation and within-cluster compactness, whilst inertia alone considers just compactness. As such, it is arguable that more emphasis be placed on the Silhouette score and Davies-Bouldin index.
 
-Using $k=3$, we can explore the properties of each derived cluster. Below are the heatmaps of each cluster, indicating the average $x$-$y$ co-ordinates of freeze-frames beloning to each cluster, where the attacking direction is from left to right. Cluster $0$ and cluster $1$ appear to represent similar average positions, with the density being most pronounced towards the central area of the attacking half of the pitch. However, cluster $0$ appears to show greater density closer to the opposition penalty area, whilst cluster $1$ is situated further back between the half-way line and the edge of the opposition penality area. Thus, we might characterise cluster $0$ as constituting deeper attacking progression actions, whilst cluster $1$ characterises attacking situations within goal-scoring proximity. Cluster $2$ appears to focus almost exclusively on actions which occur within the $6$-yard box, with slight density around the upper right corner flag.
+Using $k=2$, we can explore the properties of each derived cluster. Below are the heatmaps of each cluster, indicating the average $x$-$y$ co-ordinates of freeze-frames beloning to each cluster, where the attacking direction is from left to right. 
+
+We can see from @fig-heatmap-cluster-0 and @fig-heatmap-cluster-1 that there is a notable difference in average co-ordinates of actions belonging to each cluster. cluster $0$ appears to represent actions around the center of the pitch, whilst cluster $1$ appears to represent actions occurring just outside and inside the opposition penalty area. Given that their average pitch locations are notably different, we might expect further properties of these clusters to vary also.
 
 \
 
@@ -929,21 +984,17 @@ Using $k=3$, we can explore the properties of each derived cluster. Below are th
 
 \
 
-![Pitch Heatmap of Cluster 2](figures/kmeans_cluster_2_heatmap.png){#fig-heatmap-cluster-2}
+We can also compare each cluster's distribution of VAEP values. Given that we have $2$ clusters where each action has an associated VAEP value, we can use a two-sided $t$-test to examine if the average VAEP values of each of the two clusters significantly differ.
+
+In order to use a two-sided $t$-test, we typically desire residuals to be normally distributed. Here, the residuals are the differences between each observed VAEP value and the average VAEP of the cluster that observation belongs to. Given that we have a very large sample of spatial embeddings ($n = {776,576}$), the normality assumption can be relaxed as a $t$-test is robust to deviations from residual normality under large ($n \gg 500$) sample sizes [@lumleyImportanceNormalityAssumption2002].
 
 \
 
-We can also compare each cluster's distribution of VAEP values. Given that we have $3$ clusters where each action has an associated VAEP value, we can use a one-way analysis of variance (ANOVA) to examine if at least $1$ significant difference in average VAEP value exists between the $3$ clusters. 
-
-In order to use a one-way ANOVA, we typically desire residuals to be normally distributed. Here, the residuals are the differences between each observed VAEP value and the average VAEP of the cluster that observation belongs to. Given that we have a very large sample of spatial embeddings ($n = {929,237}$), the normality assumption can be relaxed as ANOVA is robust under large ($n \gg 25$) sample sizes [@schmiderItReallyRobust2010].
+![Residual QQ-Plot for Two-Sided Welch's t-test](figures/kmeans_label_vaep_comparison_normality_qqplot.png){#fig-heatmap-cluster-2}
 
 \
 
-![Residual QQ-Plot for One-Way Welch's ANOVA](figures/kmeans_label_vaep_comparison_normality_qqplot.png){#fig-heatmap-cluster-2}
-
-\
-
-Of greater importance is the assumption of homogeneity of variance, which @tbl-kmeans-vaep-variance-comparison shows is not met by our sample, where cluster $0$ and $1$ show variances of $0.00081$ and $0.0010$, respectively, whilst cluster $2$ has a relatively lower variance of $0.00036$. As such, a variant of one-way ANOVA known as Welch's ANOVA [@welchComparisonSeveralMean1951] can be used, which does not assume equal variance across comparison groups. 
+Of greater importance is the assumption of homogeneity of variance, which @tbl-kmeans-vaep-variance-comparison shows is not met by our sample, where cluster $0$ and $1$ show variances of $0.0008$ and $0.0011$, respectively. As such, a variant of the standard $t$-test known as Welch's $t$-test [@welchComparisonSeveralMean1951] can be used, which does not assume equal variance across comparison groups. 
 
 \
 
@@ -965,38 +1016,7 @@ df.columns = [c.title() for c in df.columns]
 
 \
 
-Results from the Welch's ANOVA reveal at least one significant difference between group means, $F(2, 509932.54) = 68.03, p < .001, \eta p^{2} = .00012$. It should be noted that the partial eta squared effect size is very small, indicating that the variation attributable to differences between the groups is small relative to the variation attributable to the group effect and within-group variation. In our case, knowing which cluster a data instance belongs to accounts for about $0.0122\%$ of the variance in observed VAEP values.
-
-Following the rejection of the null hypothesis from an ANOVA, a post-hoc test can be used to determine which specific pairwise differences are significantly different. For our purposes, a Games-Howell post-hoc test [@gamesPairwiseMultipleComparison1976] is appropriate given the violation of homogeneity of variance, and the unequal sample sizes across comparison groups. Below are the results from this post-hoc test:
-
-```{python}
-#| echo: false
-#| label: tbl-kmeans-vaep-comparison-games-howell
-#| tbl-cap: "Games-Howell Post-Hoc Significance Test Results"
-#| tbl-cap-location: bottom
-#| tbl-pos: H
-
-df = kmeans_vaep_comparison_games_howell_df
-
-(
-    df.style
-    .hide(axis="index")
-    .format({
-        "mean_A": "{:.4f}",
-        "mean_B": "{:.4f}",
-        "diff": "{:.5f}",
-        "se": "{:.6f}",
-        "T": "{:.2f}",
-        "df": "{:.2e}",
-        "pval": "{:.2e}",
-        "hedges": "{:.3f}"
-    })
-)
-```
-
-\
-
-We see that all pairwise differences were statistically significant. Of note is the comparison between cluster $0$ and cluster $1$, $t(762082.19) = -7.72,\, \Delta = -0.00053,\, \text{Hedges' } g = -0.018,\, p < .001$, which, despite again revealing a small effect size ($g = -0.018$), does align with the prior exploration of each cluster's co-ordinate heatmap. Given that cluster $1$ appeared to show greater density closer to the opponent's goal, the results from this post-hoc test would align with the interpretation that this cluster is representative of actions of slightly higher VAEP value.
+Results from the two-sided Welch's $t$-test reveal at a signficant difference between group means, $t(489849.35) = -8.71, p < .001, \text{Cohen's} d = .022$. It should be noted that the Cohen's $d$ effect size is very small, indicating that the diference between the means of each group is very small relative to the variation within each group. 
 
 Exploring how the average VAEP value changes across different quantiles of each cluster's distribution of VAEP values shows which parts of the distributions contribute to these averages for each cluster.
 
@@ -1006,25 +1026,53 @@ Exploring how the average VAEP value changes across different quantiles of each 
 
 \
 
-We can see that cluster $1$ shows higher average VAEP values than cluster $0$ across all quantiles from the $50^{th}$ to the $99^{th}$. Interestingly, cluster $2$ shows the highest average VAEP values for quantiles $50$ and $75$, but not for $90$ and beyond. This might suggest that cluster $2$ embeddings represent actions that are associated with relatively higher value in the middle of the VAEP distribution, but that cluster $1$ is more strongly associated with high-value actions in the upper tail of the distribution. In contrast, cluster $0$ consistently exhibits the lowest average VAEP values across the quantiles, except for the $99^{th}$.
+We can see that cluster $1$ shows higher average VAEP values than cluster $0$ across all quantiles from the $50^{th}$ to the $99^{th}$. Given that the overall effect size appears very small, the comparison of average VAEP values across the upper quantiles shows that this difference is somewhat larger for higher-valued actions.
 
 ### UMAP
+
+A UMAP can help to visualise the cluster structure within the spatial embeddings. @fig-umap-hyperparameter-range-clusters shows that the two $k$-means clusters occupy broadly distinct regions of the $2$-dimensional UMAP across the tested hyperparameter values, with cluster $0$ generally positioned to the left of cluster $1$. The broad separation between the clusters remains relatively consistent across different values of the number of neighbours and minimum distance, suggesting that this aspect of the embedding structure is not strongly dependent on the selected UMAP configuration. Within each $k$-means cluster, however, there also appears to be a secondary two-region structure. This internal separation becomes increasingly pronounced as the number of neighbours is increased, particularly at larger values of `n_neighbours`. Thus, while the primary distinction between the two $k$-means clusters remains stable, the UMAP suggests weak additional structure within each cluster that is influenced by the scale over which neighbourhood relationships are considered.
+
+\
 
 ![UMAP Coloured by K-means Cluster with Varying UMAP Hyperparameter Values](figures/umap_hyperparameter_range_clusters.png){#fig-umap-hyperparameter-range-clusters width=110%}
 
 \
 
+We can explore this potential within-cluster regionality via hierarchical clustering. Agglomerative clustering [@murtaghAlgorithmsHierarchicalClustering2017] iteratively groups data instances together in pairs, whereby the initial data instance form pairs of instances, those pairs are then paired into groups, and so on until the dataset is unified under a single cluster. A number of measures can be used to determined which instances are paired together at each iteration. Ward linkage [@murtaghWardsHierarchicalClustering2014] is one such measure, which pairs instances/groups in a manner which minimises the within-cluster sum of squared distances of the resultant merger. This has the effect of maximising compactness within each hierarchical cluster. 
 
+The derived pairings, which each minimise Ward linkage, from the agglomerative clustering algorithm can be plotted using a dendrogram, whereby each paring's associated Ward linkage value are plotted against the $y$-axis. This allows a visualisation of both the hierarchical cluster structure and a measure of by how much each clustering iteration increases the Ward linkage.
+
+To aid computational efficiency, a subsample of $10{,}000$ normalised embeddings were used to produce a dendrogram, enabling inspection of the resulting hierarchical structure.
+
+\
+
+![Agglomerative Clustering Dendrogram for Spatial Embeddings](figures/dendrogram.png){#fig-dendrogram}
+
+\
+
+@fig-dendrogram appears to corroborate the interpretation of the UMAP and the results from $k$-means clustering, whereby we observe two broad clusters, but also evidence of each cluster containing $2$ subclusters, as is suggested by the UMAP in @fig-umap-hyperparameter-range-clusters. These derived clusters from the agglomerative clustering algorithm are in moderately good agreement with those derived from the $k$-means algorithm, achieving an average adjusted rand index (ARI) of $0.564$ across $1{,}000$ random samples each of size $10{,}000$. The sampling distribution can be seen below in @fig-ari-sampling-distribution.
+
+\
+
+![Adjusted Rand Index Sampling Distribution](figures/ari_clustering_distribution_histogram.png){#fig-ari-sampling-distribution}
+
+\
 
 ### Spatial Embedding Dimension and Manually-Engineered Feature Correlations
+
+Embedding dimensions alone are not directly interpretable in terms of what constructs they represent, instead any present latent representations are typically spread out across multiple embedding dimensions. However, we can gain some insight into what constructs might be represented within each embedding dimension by correlating them with more intepretable features.
+
+\
 
 ![Manually-Engineered Spatial Features & Spatial Embeddings Correlation Heatmap](figures/manual_embeddings_corr_heatmap.png){#fig-manual-embeddings-corr-heatmap}
 
 \
+ 
+@fig-manual-embeddings-corr-heatmap shows strong positive correlations between embedding dimensions $13$, $45$ and $51$ and the $4$ manually-engineered actor mean/minimum distances to teammates/opponents features, whereas embedding dimensions $11$, $44$ and $50$ show strong negative correlations with these features. These embedding dimensions therefore seem to relate to spatial information regarding relative distances between the actor and other players.
 
-Embedding dimensions alone are not directly interpretable in terms of what constructs they represent, instead any present latent representations are typically spread out across multiple embedding dimensions. 
+Interesingly, it does not appear to be the case that any of the embeddings relate to the quantity of players within radius of the actor, with every dimension showing a negligible correlatons with these manually-engineered featrures.
 
-However, we can gain some insight into what constructs might be represented within each embedding. Recall @tbl-
+Embedding dimensions $4$, $10$, $23$, $37$, $49$ and $57$ appear to have negligible correlations with all manually-engineered features, indicating that these dimensions potentially contain latent spatial information which is not captured by these manually-engineered features. 
 
 ## Classifier Training {#sec-classifier-training}
 
@@ -1442,7 +1490,7 @@ We can see from @fig-vaep-per-action-actions-per-90 that our "Messi/Bonmati test
 
 #### VAEP Player Ratings & Player Market Value
 
-@decroosActionsSpeakLouder2019 also explore how their derived VAEP player ratings (see @eq-vaep-player-rating) relate to the market value of players. The authors report the top-$10$ rated Premier League players from the $2017/18$ season along with their VAEP player ratings for that season (see Table 1d in their article). 
+Using the VAEP player rating fomrula provided in @eq-vaep-player-rating, we can assign ratings to each player in our dataset. @tbl-male-vaep-ratings and @tbl-female-vaep-ratings outline the top-$10$ VAEP player ratings for male and female footballers, respectively. Whilst *Bonmati* does not appear in the women's top-$10$, presumably due to their lower VAEP per action score, *Messi* does appear and with considerably higher minutes played than the rest. Each table is dominated by players who play in attacking positions, with *Hinata Miyazawa* being the only player to not do so.
 
 \
 
@@ -1459,6 +1507,7 @@ df = top10_vaep_player_ratings_male_df
     df.style
     .hide(axis="index")
     .format({
+        "market_value_in_eur": "€{:,.2f}",
         "minutes_played": "{:.1f}"
     })
 )
@@ -1490,9 +1539,19 @@ df = top10_vaep_player_ratings_female_df
 
 \ 
 
+@decroosActionsSpeakLouder2019 also explore how their derived VAEP player ratings relate to the market value of players. The authors report the top-$10$ rated Premier League players from the $2017/18$ season along with their VAEP player ratings for that season (see Table 1d in their article). For our present data, only male football have sufficient market value data available to use, and this was collected from Transfermarkt [@FootballTransfersRumours], using the Reep register [@ReepFootballIdentity] to ensure player valuations were assigned to the correct StatsBomb player IDs. Player valuations represent their most recent recorded market valuation since $01/08/2025$.
+
+\
+
 ![VAEP Player Ratings vs Transfermarkt Market Value](figures/vaep_rating_market_value_scatterplot.png){#fig-vaep-rating-market-value-scatterplot width=90%}
 
 \
+
+Whilst market valuation is not entirely determined by the average value of the players set of actions of some time interval, @fig-vaep-rating-market-value-scatterplot does affirm our intuition that players who provide more valuable actions are generally valued more highly in the market, whereby a small, statistically significant, positive Spearman's rank correlation was observed between VAEP player rating and logarithmic Transfermarkt market valuation, $\rho = .116,\,p=.02,\, N=405$.
+
+#### Comparing Classifier VAEP Valuations of Action Sequences
+
+
 
 ## Model Interpretation
 
@@ -1502,7 +1561,7 @@ Beyond assessing the performance and face validity of the VAEP classifier models
 
 #### Grouped Permutation Importance
 
-![Grouped Permutation Importance](figures/grouped_permutation_importance.png){#fig-grouped-permutation-importance}
+![Grouped Permutation Importance](figures/grouped_permutation_importance.png){#fig-grouped-permutation-importance width=80%}
 
 @fig-grouped-permutation-importance shows the average decrease in AUC (across $10$ iterations) due to the random permutation of *baseline* features, spatial embeddings (*embeddings*) and manually-engineered spatial features (*manual*). 
 
@@ -1536,7 +1595,9 @@ By contrast, @fig-score-permutation-importance-manual shows the standard deviati
 
 #### Spatial Embedding Dimensions Permutation Importance
 
-@fig-concede-permutation-importance-embeddings and @fig-score-permutation-importance-embeddings outlines which embedding dimensions were most important for each type of classifier. We can see that for the concede classifier, embedding dimensions $26$, $48$ and $24$ constitute the top $3$ most important, with $46$, $52$ and $18$ being most important for the score classifier.
+@fig-concede-permutation-importance-embeddings and @fig-score-permutation-importance-embeddings outlines which embedding dimensions were most important for each type of classifier. We can see that for the concede classifier, embedding dimensions $26$, $48$ and $24$ constitute the top $3$ most important, with $46$, $52$ and $18$ being most important for the score classifier. 
+
+With reference to @fig-manual-embeddings-corr-heatmap, the top $3$ concede classifier embedding dimensions show slight positive correlations with relative actor to teammate/opponent distance metrics (dimension $24$), slight negative correlations with teammate/opponent convex hull area (dimensions $26$ & $48$) and slight positive correlations with the number of teammate/opponents within $10$m of the actor (dimension $48$). The top $3$ score embedding dimensions relate somewhat to relative actor to teammate/opponent distance metrics (negative for dimension $18$, positive for dimension $52$), moderate relationships with teammate/opponent convex hull area (positive for dimension $46$, negative for dimension $52$). The embedding dimensions with the strongest correlations to manually-engineered spatial features do not appear to be particularly important for the concede classifier, but are moreso for the score classifier, whereby dimensions $11$, $13$, $45$ and $50$ rank amongst the top-$20$ most important embedding dimensions.
 
 \
 
@@ -1550,13 +1611,51 @@ By contrast, @fig-score-permutation-importance-manual shows the standard deviati
 
 ### Partial Dependence Plots
 
-![PDP of Most Important Baseline Features for each Model](figures/pdp_most_important_baseline_features.png){#fig-pdp-most-important-baseline-features}
+Through partial dependence plots, we can explore how the predicted probability of scoring or conceding within $k$ actions changes as we vary single feature.
 
-![PDP of Distance To Goal](figures/pdp_dist_to_goal_a0.png){#fig-pdp-dist-to-goal-a0}
+As identified earlier, the most important baseline features for the concede and score classifiers were the `time_seconds` and `dist_to_goal` features, respectively. @fig-pdp-concede-most-important shows their respective partial dependencies. 
+
+\
+
+![PDP Comparison of Most Important Concede Classifier Baseline Feature](figures/pdp_most_important_concede_baseline_feature.png){#fig-pdp-concede-most-important}
+
+\
+
+The concede classifier plot shows the probability of conceding is higher during the first $450$ seconds ($5$ minutes) of a half (`time_seconds` is the time elapsed in the current half, not the absolute time elapsed) compared to the rest of the half, where after $2{,}000$ (around the $33^{rd}$ minute of the half) the probability increases again. 
+
+The score classifier plot shows an alternative pattern. Whilst the overall probability estimates are much higher than with the concede classifier, it appears that the predicted probability of scoring only slightly decreases over the course of each half, with the jump in probability occurring during first and second half stoppage time periods (i.e. $> 3{,}000$ seconds).
+
+\
+
+![PDP Comparison of Most Important Score Classifier Baseline Feature](figures/pdp_most_important_score_baseline_feature.png){#fig-pdp-score-most-important}
+
+\ 
+
+Regarding `dist_to_goal`, we can see patterns in @fig-pdp-score-most-important which largely match our intuitions. For the concede classifier, the estimated probability of conceding increases exponentially as the distance of the action from the opponent's goal increases (i.e. as the action gets closer to the actor's own goal). Moreover, the score classifier shows the opposite pattern, where by as the distance from goal increases, the estimated probability of scoring within $k$ events decreases exponentially. This again generally aligns with the pattern of action valuation provided by alternative models like xG and xT, which both assign higher action value to actions closer to the opponent's goal.
+
+\ 
 
 ![PDP of Goalscore Difference](figures/pdp_goalscore_diff.png){#fig-pdp-goalscore-diff}
 
+\
+
+A further sense-check can be observed in @fig-pdp-goalscore-diff, whereby the estimated probability of conceding is higher when the actor's team is losing, with that probability increasing exponentially, whilst the estimate probability remains constant as the goalscore difference increases above $0$. The score classifier again shows a mostly opposite pattern, whereby the estimated probability of scoring remains low until the goalscore difference reaches $-3$, upon which we see an exponential increase until the goalscore difference reaches $2$ and the estimated probability plateaus.
+
+\ 
+
+![PDP of Actor's Distance to Nearest Opponent](figures/pdp_actor_minimum_distance_to_opponents.png){#fig-actor-minimum-distance-to-opponents}
+
+\
+
+Inspecting @fig-actor-minimum-distance-to-opponents showing the PDP of the actor's minimum distance to opponents, using the *manual* feature set classifiers, we can see again a mostly inverted relationship across the concede and score classifiers. The concede classifier suggests the predicted probability of conceding exponentially decreases once there are no opponents within around $10$ meters of the actor, which is very intuitive. Likewise, the score classifier shows a sharp increase in the probability of scoring as the minimum opponent distance increases, plateauing at around $15$ meters. It should be noted that the scale of the $y$-axis is quite small, so these observed changes, whilst large in a relative sense, do not correspond to large absolute probabilities. Furthermore, the black ticks on the x-axis indicate the distribution of quantiles of the dataset, where we can see most of the data is congregated around the sharp changes in probability. The remaining plateaus are thus likely representative of a very small sample of actions which the classifiers assign roughly equal probabilities to.
+
 # Discussion
+
+This project aimed to explore how the addition of spatial context features altered, if at all, the performance and behaviour of the VAEP Model using the full sample of events from $6$ UEFA and FIFA tournaments across Men's ($3$) and Women's ($3$) football. By engineering feature representations of the spatial context surrounding the actor during a given action, using StatsBomb's $360$ freeze-frame data, the standard SPADL feature set typically used in the construction of VAEP models was accompanied and the change in performance and behaviour assessed. 
+
+@sec-manual-spatial-feature-engineering outlines how the manually-engineered feature set was generated from $360$ freeze-frames, whereby $10$ features were generated to represent different aspects of spatial context relating to both teammates and opponents, respectively. As for the spatial embeddings, these were generated by training an encoder-decoder architecture using a weighted Chamfer distance + binary cross-entropy loss function, with the objective to minimise reconstruction loss from reconstructed player sets produced by an MLP decoder using the embeddings generated from a set transformer decoder. We observed how the optimal hyperparameters derived from the TPE sampler resulted in a shallow encoder model, constituting of just $1$ hidden layer. We saw that additional layers, hold all other hyperparameters constant, did not yield improved test performance, even with training opportunity ($20$ rather than $10$ epochs). This hyperparameter configuration, rather than indicative of a lack of complexity in the spatial structure of football players during snapshots of actions, may instead be indicative of 
+
+Regarding classifier performance, we observed in @sec-classifier-training an ablation design which compared the performance each of the $4$ feature sets across each classifier technique for both the concede classifier and score classifier, respectively: the traditional SPADL feature set (*baseline*); baseline + manually-engineered spatial features (*manual*); baseline + spatial embeddings (*embeddings*); and baseline + manually-engineered spatial features + spatial embeddings (*all*). 
 
 
 
