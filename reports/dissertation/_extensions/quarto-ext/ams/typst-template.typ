@@ -145,7 +145,7 @@
   show math.equation: set text(weight: 400)
 
   // Configure citation and bibliography styles.
-  set bibliography(style: "apa", title: "References")
+  set bibliography(style: "ieee", title: "References")
 
   set table(
     stroke: none,
