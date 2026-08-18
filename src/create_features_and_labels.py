@@ -23,7 +23,6 @@ xfns = [
     fs.time_delta,
 ]
 
-
 yfns = [
     lab.scores,
     lab.concedes,

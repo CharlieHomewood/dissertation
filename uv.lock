@@ -11,6 +11,20 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "adjusttext"
+version = "1.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b5/5c/496e506ad3313664df24a79f801719cadcd62af5999fcb299c9b08ff0d4b/adjusttext-1.4.0.tar.gz", hash = "sha256:1f73860ced8cccce3f85ee6989ca133c2579b67a7453f63dbeb38f39bf123154", size = 15852, upload-time = "2026-06-08T16:48:32.726Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b8/2c/897bdd17b05724c894a5b831c6b2e9853adcc2d07a70d6246c0cd5cd3912/adjusttext-1.4.0-py3-none-any.whl", hash = "sha256:6febd6484c0d45c39a22f44b2c1f4a8cd01ef58fada565cab4b629c771df79b5", size = 13262, upload-time = "2026-06-08T16:48:31.765Z" },
+]
+
+[[package]]
 name = "annotated-types"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -433,6 +447,7 @@ name = "dissertation"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "adjusttext" },
     { name = "catboost" },
     { name = "duckdb" },
     { name = "fastparquet" },
@@ -441,6 +456,7 @@ dependencies = [
     { name = "matplotlib" },
     { name = "mlstatkit" },
     { name = "mplsoccer" },
+    { name = "pingouin" },
     { name = "scikit-learn" },
     { name = "socceraction" },
     { name = "statsbombpy" },
@@ -453,6 +469,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "adjusttext", specifier = ">=1.4.0" },
     { name = "catboost", specifier = ">=1.2.10" },
     { name = "duckdb", specifier = ">=1.5.5" },
     { name = "fastparquet", specifier = ">=2026.5.0" },
@@ -461,6 +478,7 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.11.0" },
     { name = "mlstatkit", specifier = ">=0.1.91" },
     { name = "mplsoccer", specifier = ">=1.6.1" },
+    { name = "pingouin", specifier = ">=0.6.1" },
     { name = "scikit-learn", specifier = ">=1.9.0" },
     { name = "socceraction", specifier = "==1.5.3" },
     { name = "statsbombpy", specifier = ">=1.19.0" },
@@ -1166,6 +1184,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pandas-flavor"
+version = "0.8.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pandas" },
+    { name = "xarray" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/86/60/901bacfcc4e67499e37198ad199fb7c113b06814148f7f4822816467a925/pandas_flavor-0.8.1.tar.gz", hash = "sha256:255fa5851833ee0132c4fdd6c1565ec1e938a8c2671c37e408006da6b2bdc366", size = 98266, upload-time = "2025-11-22T11:03:11.209Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/30/04/b57109ac39c90054ca8239daa61f619042b73406309c33df06d3b73a48a7/pandas_flavor-0.8.1-py3-none-any.whl", hash = "sha256:6a74c48a7014e27117a164b687c23ca9f7da46c5b198a516ab4ebaa22435292b", size = 8528, upload-time = "2025-11-22T11:03:10.368Z" },
+]
+
+[[package]]
 name = "pandera"
 version = "0.17.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1284,6 +1315,26 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c9/e4/4b64a97d71b2a83158134abbb2f5bd3f8a2ea691361282f010998f339ec7/pillow-12.2.0-cp314-cp314t-win32.whl", hash = "sha256:6bb77b2dcb06b20f9f4b4a8454caa581cd4dd0643a08bacf821216a16d9c8354", size = 6482084, upload-time = "2026-04-01T14:45:47.568Z" },
     { url = "https://files.pythonhosted.org/packages/ba/13/306d275efd3a3453f72114b7431c877d10b1154014c1ebbedd067770d629/pillow-12.2.0-cp314-cp314t-win_amd64.whl", hash = "sha256:6562ace0d3fb5f20ed7290f1f929cae41b25ae29528f2af1722966a0a02e2aa1", size = 7225152, upload-time = "2026-04-01T14:45:50.032Z" },
     { url = "https://files.pythonhosted.org/packages/ff/6e/cf826fae916b8658848d7b9f38d88da6396895c676e8086fc0988073aaf8/pillow-12.2.0-cp314-cp314t-win_arm64.whl", hash = "sha256:aa88ccfe4e32d362816319ed727a004423aab09c5cea43c01a4b435643fa34eb", size = 2556579, upload-time = "2026-04-01T14:45:52.529Z" },
+]
+
+[[package]]
+name = "pingouin"
+version = "0.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "pandas-flavor" },
+    { name = "scikit-learn" },
+    { name = "scipy" },
+    { name = "seaborn" },
+    { name = "statsmodels" },
+    { name = "tabulate" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c8/3f/354391f09b826ca73fbb0e59222c531ffe38de8f5b6a8decb66e435ceb26/pingouin-0.6.1.tar.gz", hash = "sha256:df5ac1f057ef257c07cf0e0785ac8fb9ace923ba1b0ef775886914d674a9f63d", size = 233176, upload-time = "2026-03-28T14:04:36.186Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/58/6d/23037a7081a15c2ddfcd788194996bafe5c4cee8532d7e23d5e5beebcfbe/pingouin-0.6.1-py3-none-any.whl", hash = "sha256:514f2897d7ee354723268551147bbc95849ccec83d6f1dddde1395779c6a7b15", size = 203990, upload-time = "2026-03-28T14:04:34.536Z" },
 ]
 
 [[package]]
@@ -2002,6 +2053,20 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/4f/ac12fda57a55068a094ec42851fb0a40e8489d8941863d517452de62e507/wrapt-2.2.2-cp314-cp314t-win_amd64.whl", hash = "sha256:d09db0f7e8357060d3c38fc22a018aba683a796bf184360fd1a58f6fc180dc77", size = 82462, upload-time = "2026-06-20T23:49:21.631Z" },
     { url = "https://files.pythonhosted.org/packages/48/a7/df732dac86d9b2027c56bd163dbc883e037b16c3469614752e148d219c61/wrapt-2.2.2-cp314-cp314t-win_arm64.whl", hash = "sha256:f32fe639c39561ccc187bcae17e9271be0eb45f1c2952510d2f29b33ab577347", size = 81182, upload-time = "2026-06-20T23:49:23.199Z" },
     { url = "https://files.pythonhosted.org/packages/6e/d2/6317eb6d4554855bbf12d61857774af34747bf88a42c19bf306de67e2fa3/wrapt-2.2.2-py3-none-any.whl", hash = "sha256:5bad217350f19ce99ca5b5e71d406765ea86fe541628426772b657375ee1c048", size = 61460, upload-time = "2026-06-20T23:49:42.966Z" },
+]
+
+[[package]]
+name = "xarray"
+version = "2026.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pandas" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ea/96/3f7bdd00e505ec3698903415b30135024703e017b28c6b61f98da3193b0d/xarray-2026.7.0.tar.gz", hash = "sha256:361b495928fdbf5b58d0969bb6775339019da5e93ca74d61ddf4eb5edd6ce604", size = 3145348, upload-time = "2026-07-09T17:38:26.515Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/57/5b/28365212062939d213802e5e5fe855cdb231e1c2a93254ba1690066504e3/xarray-2026.7.0-py3-none-any.whl", hash = "sha256:bf9dd130b93806dc78e90c1b7ac24851b31557b888674c53622235691cf21824", size = 1426778, upload-time = "2026-07-09T17:38:24.224Z" },
 ]
 
 [[package]]

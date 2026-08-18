@@ -205,7 +205,6 @@ print(study.best_trial.params)
 
 best_params = study.best_trial.params
 
-
 train_loader = DataLoader(
     train_dataset,
     batch_size=best_params["batch_size"],
